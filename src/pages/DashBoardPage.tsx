@@ -1,31 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Users, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, FileText, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { documentService } from '../api/documentService';
-import { groupService } from '../api/groupService';
-import { studyPlanService } from '../api/studyPlanService';
+import { useDashboardStats } from '../hooks/useDashboardStats';
+import { formatDateTime } from '../utils/formatDate';
+import { StatCard } from '../components/dashboard/StatCard';
+import { ErrorState } from '../components/common/ErrorState';
+import { EmptyState } from '../components/common/EmptyState';
+import { LeaderboardList } from '../components/achievements/LeaderboardList';
+import { useLeaderboard } from '../hooks/useAchievements';
 
 export const DashboardPage: React.FC = () => {
-  const { user, isAdmin } = useAuth();
-  const [stats, setStats] = useState({ docs: 0, groups: 0, plans: 0 });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.allSettled([
-      documentService.getPublicDocuments({ page: 0, size: 1 }, controller.signal),
-      groupService.getAllGroups(0, 1, controller.signal),
-      studyPlanService.getMyPlans(controller.signal),
-    ]).then(([docsRes, groupsRes, plansRes]) => {
-      setStats({
-        docs: docsRes.status === 'fulfilled' ? docsRes.value.totalElements : 0,
-        groups: groupsRes.status === 'fulfilled' ? groupsRes.value.totalElements : 0,
-        plans: plansRes.status === 'fulfilled' ? plansRes.value.length : 0,
-      });
-    });
-
-    return () => controller.abort();
-  }, []);
+  const { user, canManageUsers } = useAuth();
+  const { stats, loading, error, reload } = useDashboardStats();
+  const leaderboard = useLeaderboard('week');
+  const value = (count?: number) => (loading ? null : (count ?? 0));
 
   return (
     <div className="space-y-8">
@@ -33,77 +22,129 @@ export const DashboardPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-xs">
-              <ShieldCheck size={14} /> Plataforma Académica Colaborativa
+              <ShieldCheck size={14} /> Plataforma académica colaborativa
             </span>
-            <h1 className="mt-3 text-2xl font-bold sm:text-3xl">
-              ¡Hola, {user?.username}! 👋
-            </h1>
+            <h1 className="mt-3 text-2xl font-bold sm:text-3xl">¡Hola, {user?.username}! 👋</h1>
             <p className="mt-1 max-w-xl text-sm text-indigo-100">
-              Explora apuntes verificados por la comunidad, colabora en grupos privados de estudio y genera rutas de aprendizaje personalizadas con IA.
+              Explora apuntes de la comunidad, colabora en grupos de estudio y genera planes de estudio a tu medida.
             </p>
           </div>
           <Link
             to="/study-planner"
             className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-indigo-700 shadow-xs transition hover:bg-indigo-50"
           >
-            <Sparkles size={16} /> Generar Plan con IA
+            <Sparkles size={16} /> Generar plan de estudio
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Documentos Públicos</span>
-            <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600">
-              <FileText size={20} />
-            </div>
+      {error ? (
+        <ErrorState title="No pudimos cargar tu resumen" message={error} onRetry={reload} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <StatCard
+              label="Documentos públicos"
+              value={value(stats?.documents)}
+              icon={<FileText size={20} />}
+              to="/documents"
+              linkLabel="Ir a la biblioteca"
+              accent="indigo"
+            />
+            <StatCard
+              label="Grupos disponibles"
+              value={value(stats?.groups)}
+              icon={<Users size={20} />}
+              to="/groups"
+              linkLabel="Explorar grupos"
+              accent="emerald"
+            />
+            <StatCard
+              label="Mis planes de estudio"
+              value={value(stats?.plans)}
+              icon={<Sparkles size={20} />}
+              to="/study-planner"
+              linkLabel="Ver mi historial"
+              accent="violet"
+            />
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-slate-900">{stats.docs}</p>
-          <Link
-            to="/documents"
-            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"
-          >
-            Ir a la biblioteca <ArrowRight size={13} />
-          </Link>
-        </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Grupos de Estudio</span>
-            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
-              <Users size={20} />
-            </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:col-span-2">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-base font-bold text-slate-900">Recién subido</h2>
+                <Link to="/documents" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                  Ver todo <ArrowRight size={13} />
+                </Link>
+              </div>
+              {loading ? (
+                <ul className="space-y-3" aria-label="Cargando documentos recientes">
+                  {[0, 1, 2].map((item) => (
+                    <li key={item} className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                  ))}
+                </ul>
+              ) : stats && stats.recentDocuments.length > 0 ? (
+                <ul className="divide-y divide-slate-100">
+                  {stats.recentDocuments.map((doc) => (
+                    <li key={doc.id} className="flex items-center gap-3 py-3">
+                      <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                        <FileText size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-800">{doc.title}</p>
+                        <p className="text-xs text-slate-500">
+                          @{doc.authorUsername} · {formatDateTime(doc.uploadedAt)}
+                        </p>
+                      </div>
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                      >
+                        Abrir
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState
+                  title="Aún no hay documentos"
+                  description="Sé el primero en compartir un apunte con la comunidad."
+                />
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-1.5 text-base font-bold text-slate-900">
+                  <Trophy size={16} className="text-amber-500" /> Top de la semana
+                </h2>
+                <Link to="/achievements" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                  Mis logros <ArrowRight size={13} />
+                </Link>
+              </div>
+              {leaderboard.loading ? (
+                <ul className="space-y-3" aria-label="Cargando ranking">
+                  {[0, 1, 2].map((item) => (
+                    <li key={item} className="h-10 animate-pulse rounded-xl bg-slate-100" />
+                  ))}
+                </ul>
+              ) : leaderboard.entries.length > 0 ? (
+                <LeaderboardList entries={leaderboard.entries.slice(0, 5)} currentUserId={user?.id} />
+              ) : (
+                <p className="py-6 text-center text-xs text-slate-400">
+                  Aún nadie suma puntos esta semana. Comparte un apunte o agenda una asesoría para empezar.
+                </p>
+              )}
+            </section>
           </div>
-          <p className="mt-3 text-3xl font-extrabold text-slate-900">{stats.groups}</p>
-          <Link
-            to="/groups"
-            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:underline"
-          >
-            Explorar grupos <ArrowRight size={13} />
-          </Link>
-        </div>
+        </>
+      )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Mis Planes de Estudio IA</span>
-            <div className="rounded-xl bg-violet-50 p-2.5 text-violet-600">
-              <Sparkles size={20} />
-            </div>
-          </div>
-          <p className="mt-3 text-3xl font-extrabold text-slate-900">{stats.plans}</p>
-          <Link
-            to="/study-planner"
-            className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:underline"
-          >
-            Ver mi historial <ArrowRight size={13} />
-          </Link>
-        </div>
-      </div>
-
-      {isAdmin && (
+      {canManageUsers && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 text-xs text-amber-900">
-          Tienes privilegios de <strong>ROLE_ADMIN</strong>. Puedes gestionar roles de usuarios desde la pestaña Admin en la barra superior.
+          Tienes acceso a la administración de usuarios. Encuéntrala en la pestaña <strong>Usuarios</strong> de la barra superior.
         </div>
       )}
     </div>

@@ -1,42 +1,65 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { BookOpen, UserPlus } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { RegisterRequest } from '../types';
-import { extractErrorMessage } from '../api/axiosInstance';
+import { extractErrorMessage, getErrorStatus } from '../utils/errors';
+import { applyServerErrors, inputClass } from '../utils/forms';
+import { ThemeToggle } from '../components/layout/ThemeToggle';
+import { PasswordInput } from '../components/common/PasswordInput';
+import { redirectPathFrom } from '../utils/redirect';
+
+interface RegisterForm extends RegisterRequest {
+  confirmPassword: string;
+}
 
 export const RegisterPage: React.FC = () => {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterRequest>({
+    setError,
+    watch,
+    trigger,
+    formState: { errors, isSubmitting, touchedFields },
+  } = useForm<RegisterForm>({
     mode: 'onChange',
+    defaultValues: { advisor: false },
   });
+  const password = watch('password');
 
-  const onSubmit = async (data: RegisterRequest) => {
+  const onSubmit = async ({ confirmPassword: _confirm, ...data }: RegisterForm) => {
     try {
-      await registerUser(data);
+      await registerUser({ ...data, username: data.username.trim(), email: data.email.trim() });
       toast.success('¡Cuenta creada exitosamente!');
-      navigate('/dashboard');
+      navigate(redirectPathFrom(location.state), { replace: true });
     } catch (error) {
-      toast.error(extractErrorMessage(error));
+      if (applyServerErrors(error, setError)) return;
+      const message = extractErrorMessage(error);
+      if (getErrorStatus(error) === 409) {
+        setError(message.toLowerCase().includes('correo') ? 'email' : 'username', { type: 'server', message });
+        return;
+      }
+      toast.error(message);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-indigo-50 via-white to-slate-100 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-linear-to-br from-indigo-50 via-white to-slate-100 p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
             <BookOpen size={26} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Crear Cuenta</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Crear cuenta</h1>
           <p className="mt-1 text-sm text-slate-500">
             Únete a la comunidad colaborativa de estudio universitario
           </p>
@@ -56,7 +79,8 @@ export const RegisterPage: React.FC = () => {
                 minLength: { value: 3, message: 'Mínimo 3 caracteres' },
                 maxLength: { value: 50, message: 'Máximo 50 caracteres' },
               })}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+              autoComplete="username"
+              className={inputClass(Boolean(errors.username))}
             />
             {errors.username && (
               <p className="mt-1 text-xs text-red-600">{errors.username.message}</p>
@@ -78,7 +102,8 @@ export const RegisterPage: React.FC = () => {
                   message: 'Ingresa un correo electrónico válido',
                 },
               })}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+              autoComplete="email"
+              className={inputClass(Boolean(errors.email))}
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
@@ -89,20 +114,56 @@ export const RegisterPage: React.FC = () => {
             <label htmlFor="password" className="block text-xs font-semibold text-slate-700">
               Contraseña
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres, con letras y números"
               {...register('password', {
                 required: 'La contraseña es obligatoria',
-                minLength: { value: 6, message: 'Mínimo 6 caracteres' },
+                minLength: { value: 8, message: 'Mínimo 8 caracteres' },
+                pattern: {
+                  value: /^(?=.*[A-Za-z])(?=.*\d).+$/,
+                  message: 'Debe incluir al menos una letra y un número',
+                },
+                onChange: () => {
+                  if (touchedFields.confirmPassword) void trigger('confirmPassword');
+                },
               })}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:outline-hidden"
+              autoComplete="new-password"
+              hasError={Boolean(errors.password)}
             />
             {errors.password && (
               <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
             )}
           </div>
+
+          <div>
+            <label htmlFor="confirmPassword" className="block text-xs font-semibold text-slate-700">
+              Confirmar contraseña
+            </label>
+            <PasswordInput
+              id="confirmPassword"
+              placeholder="Vuelve a escribir tu contraseña"
+              {...register('confirmPassword', {
+                required: 'Confirma tu contraseña',
+                validate: (value) => value === password || 'Las contraseñas no coinciden',
+              })}
+              autoComplete="new-password"
+              hasError={Boolean(errors.confirmPassword)}
+            />
+            {errors.confirmPassword && (
+              <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm transition hover:border-indigo-300">
+            <input type="checkbox" {...register('advisor')} className="mt-0.5 h-4 w-4 accent-indigo-600" />
+            <span>
+              <span className="block font-semibold text-slate-800">Quiero ser asesor</span>
+              <span className="block text-xs text-slate-500">
+                Podrás dictar asesorías y se mostrará una insignia junto a tu nombre. Puedes cambiarlo luego en tu perfil.
+              </span>
+            </span>
+          </label>
 
           <button
             type="submit"
@@ -116,7 +177,7 @@ export const RegisterPage: React.FC = () => {
 
         <p className="mt-6 text-center text-xs text-slate-600">
           ¿Ya tienes una cuenta?{' '}
-          <Link to="/login" className="font-semibold text-indigo-600 hover:underline">
+          <Link to="/login" state={location.state} className="font-semibold text-indigo-600 hover:underline">
             Inicia sesión
           </Link>
         </p>

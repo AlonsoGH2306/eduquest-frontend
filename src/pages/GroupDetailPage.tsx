@@ -1,322 +1,425 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  FileText,
-  Calendar,
-  Plus,
-  Video,
-  Lock,
-  UserPlus,
-  Clock,
-} from 'lucide-react';
-import { groupService } from '../api/groupService';
-import { extractErrorMessage } from '../api/axiosInstance';
-import {
-  DocumentRequest,
-  DocumentResponse,
-  GroupResponse,
-  StudySessionRequest,
-  StudySessionResponse,
-} from '../types';
+import { Calendar, FileText, Lock, MessagesSquare, Plus, Send, Trash2, UserPlus, Users } from 'lucide-react';
+import { DocumentRequest, DocumentResponse, GroupResponse, StudySessionRequest, StudySessionResponse } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import { GroupTab, useGroupDetail } from '../hooks/useGroupDetail';
+import { usePageParams } from '../hooks/usePageParams';
+import { useMyGroups } from '../hooks/useMyGroups';
+import { extractErrorMessage } from '../utils/errors';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { SkeletonCard } from '../components/common/SkeletonCard';
 import { EmptyState } from '../components/common/EmptyState';
+import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
+import { ConfirmModal } from '../components/common/ConfirmModal';
+import { TabButton } from '../components/common/TabButton';
 import { DocumentCard } from '../components/documents/DocumentCard';
 import { DocumentUploadModal } from '../components/documents/DocumentUploadModal';
 import { ReviewModal } from '../components/documents/ReviewModal';
 import { ScheduleSessionModal } from '../components/groups/ScheduleSessionModal';
-import axios from 'axios';
+import { JoinPrivateGroupModal } from '../components/groups/JoinPrivateGroupModal';
+import { SessionCard } from '../components/groups/SessionCard';
+import { MemberList } from '../components/groups/MemberList';
+import { VisibilityBadge } from '../components/groups/VisibilityBadge';
+import { GroupChat } from '../components/groups/GroupChat';
+import { InviteModal } from '../components/groups/InviteModal';
+import { SessionReviewsModal } from '../components/groups/SessionReviewsModal';
+import { RecordingModal } from '../components/groups/RecordingModal';
+import { RecordingPlayerModal } from '../components/groups/RecordingPlayerModal';
+import { ReportModal, ReportTarget } from '../components/reports/ReportModal';
+
+const TABS: GroupTab[] = ['docs', 'sessions', 'chat', 'members'];
 
 export const GroupDetailPage: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
-  const location = useLocation();
   const numericGroupId = Number(groupId);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const groupFromState = (location.state as { group?: GroupResponse } | null)?.group;
 
-  const groupFromState = (location.state as { group?: GroupResponse })?.group;
+  const { page, size, setPage, setSize, searchParams, updateParams } = usePageParams();
+  const tabParam = searchParams.get('tab') as GroupTab | null;
+  const activeTab: GroupTab = tabParam && TABS.includes(tabParam) ? tabParam : 'docs';
 
-  const [activeTab, setActiveTab] = useState<'docs' | 'sessions'>('docs');
-  const [isForbidden, setIsForbidden] = useState(false);
+  const {
+    group,
+    groupNotFound,
+    isMember,
+    documents,
+    sessions,
+    sessionsLoading,
+    sessionsError,
+    members,
+    membersLoading,
+    membersError,
+    markJoined,
+    join,
+    joinWithPassword,
+    uploadDocument,
+    saveSession,
+    deleteSession,
+    toggleAttendance,
+    reviewSession,
+    updateRecording,
+    reloadSessions,
+    reloadMembers,
+  } = useGroupDetail(numericGroupId, page, size, activeTab, groupFromState);
 
-  // Estado de documentos privados del grupo
-  const [docs, setDocs] = useState<DocumentResponse[]>([]);
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState(10);
-  const [totalElements, setTotalElements] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loadingDocs, setLoadingDocs] = useState(true);
-
-  // Estado de sesiones de estudio
-  const [sessions, setSessions] = useState<StudySessionResponse[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
-
-  // Modales
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<StudySessionResponse | null>(null);
+  const [sessionToDelete, setSessionToDelete] = useState<StudySessionResponse | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [askPassword, setAskPassword] = useState(false);
   const [selectedDocForReview, setSelectedDocForReview] = useState<DocumentResponse | null>(null);
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [attendanceBusyId, setAttendanceBusyId] = useState<number | null>(null);
+  const [reviewingSession, setReviewingSession] = useState<StudySessionResponse | null>(null);
+  const [recordingSession, setRecordingSession] = useState<StudySessionResponse | null>(null);
+  const [watchingSession, setWatchingSession] = useState<StudySessionResponse | null>(null);
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  const { groups: myGroups, markSeen, markChatSeen, refresh: refreshMyGroups } = useMyGroups();
+  const unreadMessages = myGroups.find((mine) => mine.id === numericGroupId)?.unreadMessages ?? 0;
+  const handleChatSeen = useCallback(() => {
+    markChatSeen(numericGroupId).catch(() => undefined);
+  }, [markChatSeen, numericGroupId]);
 
   useEffect(() => {
-    if (!numericGroupId) return;
-    const controller = new AbortController();
-    setLoadingDocs(true);
-    setIsForbidden(false);
+    if (!isMember || !group?.member) return;
+    markSeen(numericGroupId).catch(() => undefined);
+  }, [isMember, group?.member, numericGroupId, markSeen]);
 
-    groupService
-      .getGroupDocuments(numericGroupId, page, size, controller.signal)
-      .then((res) => {
-        setDocs(res.content);
-        setTotalElements(res.totalElements);
-        setTotalPages(res.totalPages);
-      })
-      .catch((err) => {
-        if (err.name === 'CanceledError') return;
-        if (axios.isAxiosError(err) && err.response?.status === 403) {
-          setIsForbidden(true);
-        } else {
-          toast.error(extractErrorMessage(err));
-        }
-      })
-      .finally(() => setLoadingDocs(false));
+  const groupName = group?.name ?? `Grupo #${numericGroupId}`;
+  const isOwner = Boolean(group && user && group.creatorUsername === user.username);
 
-    return () => controller.abort();
-  }, [numericGroupId, page, size, refreshTick]);
+  const changeTab = (tab: GroupTab) => updateParams({ tab: tab === 'docs' ? null : tab });
 
-  useEffect(() => {
-    if (!numericGroupId || activeTab !== 'sessions' || isForbidden) return;
-    const controller = new AbortController();
-    setLoadingSessions(true);
-
-    groupService
-      .getGroupSessions(numericGroupId, controller.signal)
-      .then((data) => setSessions(data))
-      .catch((err) => {
-        if (err.name !== 'CanceledError') {
-          toast.error(extractErrorMessage(err));
-        }
-      })
-      .finally(() => setLoadingSessions(false));
-
-    return () => controller.abort();
-  }, [numericGroupId, activeTab, isForbidden, refreshTick]);
-
-  const handleJoinNow = async () => {
+  const handleJoin = async () => {
+    if (group?.visibility === 'PRIVATE') {
+      setAskPassword(true);
+      return;
+    }
+    setJoining(true);
     try {
-      await groupService.joinGroup(numericGroupId);
+      await join();
+      refreshMyGroups();
       toast.success('¡Ahora eres miembro de este grupo!');
-      setIsForbidden(false);
-      setRefreshTick((t) => t + 1);
     } catch (error) {
       toast.error(extractErrorMessage(error));
+    } finally {
+      setJoining(false);
     }
   };
 
-  const handleUploadGroupDoc = async (payload: DocumentRequest) => {
+  const handleUpload = async (payload: DocumentRequest) => {
     try {
-      await groupService.uploadDocumentToGroup(numericGroupId, payload);
+      await uploadDocument(payload);
       toast.success('¡Documento compartido en el grupo!');
-      setRefreshTick((t) => t + 1);
     } catch (error) {
       toast.error(extractErrorMessage(error));
       throw error;
     }
   };
 
-  const handleScheduleSession = async (payload: StudySessionRequest) => {
+  const openSessionModal = (session: StudySessionResponse | null) => {
+    setEditingSession(session);
+    setIsSessionModalOpen(true);
+  };
+
+  const handleSaveSession = async (payload: StudySessionRequest) => {
     try {
-      await groupService.scheduleSession(numericGroupId, payload);
-      toast.success('¡Sesión de estudio programada!');
-      setRefreshTick((t) => t + 1);
+      await saveSession(payload, editingSession?.id);
+      toast.success(editingSession ? 'Sesión actualizada' : '¡Sesión de estudio programada!');
+      if (activeTab !== 'sessions') changeTab('sessions');
     } catch (error) {
       toast.error(extractErrorMessage(error));
       throw error;
     }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    setDeletingSession(true);
+    try {
+      await deleteSession(sessionToDelete.id);
+      toast.success('Sesión eliminada');
+      setSessionToDelete(null);
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setDeletingSession(false);
+    }
+  };
+
+  const handleToggleAttendance = async (session: StudySessionResponse) => {
+    setAttendanceBusyId(session.id);
+    try {
+      await toggleAttendance(session);
+      toast.success(session.attending ? 'Cancelaste tu asistencia' : '¡Te esperamos en la sesión!');
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setAttendanceBusyId(null);
+    }
+  };
+
+  if (groupNotFound && documents.errorStatus !== 403) {
+    return (
+      <EmptyState
+        title="No encontramos este grupo"
+        description="Puede que lo hayan eliminado o que sea privado. Búscalo con su código en Grupos."
+        actionLabel="Ir a Grupos"
+        onAction={() => navigate('/groups')}
+      />
+    );
+  }
+
+  const renderDocuments = () => {
+    if (documents.loading) return <SkeletonCard count={3} />;
+    if (documents.error) return <ErrorState message={documents.error} onRetry={documents.reload} />;
+    if (documents.items.length === 0) {
+      return (
+        <EmptyState
+          title="Aún no hay documentos en este grupo"
+          description="Comparte el primer apunte o guía exclusiva con los miembros del grupo."
+          actionLabel="Subir documento al grupo"
+          onAction={() => setIsUploadOpen(true)}
+        />
+      );
+    }
+    return (
+      <>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {documents.items.map((doc) => (
+            <DocumentCard key={doc.id} document={doc} onOpenReviews={setSelectedDocForReview} />
+          ))}
+        </div>
+        <PaginationBar
+          page={page}
+          size={size}
+          totalElements={documents.totalElements}
+          totalPages={documents.totalPages}
+          onPageChange={setPage}
+          onSizeChange={setSize}
+        />
+      </>
+    );
+  };
+
+  const renderSessions = () => {
+    if (sessionsLoading) return <SkeletonCard count={2} />;
+    if (sessionsError) return <ErrorState message={sessionsError} onRetry={reloadSessions} />;
+    if (sessions.length === 0) {
+      return (
+        <EmptyState
+          title="No hay sesiones programadas"
+          description="Agenda una reunión de repaso grupal con enlace a Google Meet, Zoom o Discord."
+          actionLabel="Agendar sesión"
+          onAction={() => openSessionModal(null)}
+        />
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {sessions.map((session) => (
+          <SessionCard
+            key={session.id}
+            session={session}
+            busy={attendanceBusyId === session.id}
+            onEdit={openSessionModal}
+            onDelete={setSessionToDelete}
+            onToggleAttendance={handleToggleAttendance}
+            onOpenReviews={setReviewingSession}
+            onEditRecording={setRecordingSession}
+            onWatchRecording={setWatchingSession}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderMembers = () => {
+    if (membersLoading) return <SkeletonCard count={2} />;
+    if (membersError) return <ErrorState message={membersError} onRetry={reloadMembers} />;
+    return (
+      <MemberList
+        members={members}
+        currentUserId={user?.id}
+        onMessage={(member) => navigate(`/messages/${member.id}`)}
+        onReport={(member) => setReportTarget({ type: 'USER', id: member.id, label: member.username })}
+      />
+    );
   };
 
   return (
     <div>
-      <Breadcrumbs
-        items={[
-          { label: 'Grupos Privados', to: '/groups' },
-          { label: groupFromState?.name || `Grupo #${numericGroupId}` },
-        ]}
-      />
+      <Breadcrumbs items={[{ label: 'Grupos de estudio', to: '/groups' }, { label: groupName }]} />
 
       <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {groupFromState?.name || `Espacio del Grupo #${numericGroupId}`}
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">{groupName}</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {groupFromState?.description ||
-              'Repositorio privado de documentos y calendario de sesiones de estudio del grupo.'}
+            {group?.description || 'Documentos y sesiones de estudio compartidos solo con los miembros del grupo.'}
           </p>
+          {group?.code && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <VisibilityBadge visibility={group.visibility} />
+              <span className="text-slate-500">
+                Código <span className="font-mono font-semibold tracking-wider text-slate-800">{group.code}</span>
+              </span>
+              <span className="text-slate-500">· Creado por @{group.creatorUsername}</span>
+            </div>
+          )}
         </div>
 
-        {!isForbidden && (
+        {isMember && (
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setIsUploadOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
             >
-              <Plus size={15} /> Subir Documento al Grupo
+              <Plus size={15} /> Subir documento
             </button>
             <button
               type="button"
-              onClick={() => setIsSessionModalOpen(true)}
+              onClick={() => openSessionModal(null)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
             >
-              <Calendar size={15} /> Agendar Sesión
+              <Calendar size={15} /> Agendar sesión
             </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setInviteOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
+              >
+                <Send size={15} /> Invitar
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {isForbidden ? (
+      {!isMember ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/60 p-10 text-center">
           <div className="mb-3 rounded-full bg-amber-100 p-3 text-amber-700">
             <Lock size={28} />
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Contenido Exclusivo para Miembros</h2>
+          <h2 className="text-lg font-bold text-slate-900">Contenido exclusivo para miembros</h2>
           <p className="mt-1 max-w-md text-xs text-slate-600">
-            Por seguridad, solo los integrantes de este grupo privado pueden acceder a sus apuntes y enlaces de videollamada.
+            {group?.visibility === 'PRIVATE'
+              ? 'Este grupo es privado: necesitas la contraseña que te compartió su creador para entrar.'
+              : 'Únete para ver los apuntes del grupo y los enlaces de sus sesiones.'}
           </p>
           <button
             type="button"
-            onClick={handleJoinNow}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+            onClick={handleJoin}
+            disabled={joining}
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50"
           >
-            <UserPlus size={16} /> Unirme a este Grupo Ahora
+            <UserPlus size={16} /> {joining ? 'Uniéndote...' : 'Unirme a este grupo'}
           </button>
         </div>
       ) : (
         <>
-          {/* Tabs */}
-          <div className="mb-6 flex gap-2 border-b border-slate-200">
-            <button
-              type="button"
-              onClick={() => setActiveTab('docs')}
-              className={`inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition ${
-                activeTab === 'docs'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <FileText size={15} /> Documentos del Grupo ({totalElements})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('sessions')}
-              className={`inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold transition ${
-                activeTab === 'sessions'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Calendar size={15} /> Sesiones de Estudio
-            </button>
+          <div role="tablist" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
+            <TabButton
+              active={activeTab === 'docs'}
+              onClick={() => changeTab('docs')}
+              icon={<FileText size={15} />}
+              label={`Documentos (${documents.totalElements})`}
+            />
+            <TabButton
+              active={activeTab === 'sessions'}
+              onClick={() => changeTab('sessions')}
+              icon={<Calendar size={15} />}
+              label="Sesiones de estudio"
+            />
+            <TabButton
+              active={activeTab === 'chat'}
+              onClick={() => changeTab('chat')}
+              icon={<MessagesSquare size={15} />}
+              label={unreadMessages > 0 && activeTab !== 'chat' ? `Chat (${unreadMessages} nuevos)` : 'Chat'}
+            />
+            <TabButton
+              active={activeTab === 'members'}
+              onClick={() => changeTab('members')}
+              icon={<Users size={15} />}
+              label={group ? `Integrantes (${group.memberCount})` : 'Integrantes'}
+            />
           </div>
 
-          {activeTab === 'docs' ? (
-            loadingDocs ? (
-              <SkeletonCard count={3} />
-            ) : docs.length === 0 ? (
-              <EmptyState
-                title="Aún no hay documentos en este grupo"
-                description="Comparte el primer apunte o guía exclusiva con los miembros del grupo."
-                actionLabel="Subir Documento al Grupo"
-                onAction={() => setIsUploadOpen(true)}
-              />
-            ) : (
-              <>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {docs.map((d) => (
-                    <DocumentCard
-                      key={d.id}
-                      document={d}
-                      onOpenReviews={(doc) => setSelectedDocForReview(doc)}
-                    />
-                  ))}
-                </div>
-                <PaginationBar
-                  page={page}
-                  size={size}
-                  totalElements={totalElements}
-                  totalPages={totalPages}
-                  onPageChange={setPage}
-                  onSizeChange={(newSize) => {
-                    setSize(newSize);
-                    setPage(0);
-                  }}
-                />
-              </>
-            )
-          ) : loadingSessions ? (
-            <SkeletonCard count={3} />
-          ) : sessions.length === 0 ? (
-            <EmptyState
-              title="No hay sesiones programadas"
-              description="Agenda una reunión de repaso grupal con enlace a Google Meet, Zoom o Discord."
-              actionLabel="Agendar Sesión"
-              onAction={() => setIsSessionModalOpen(true)}
-            />
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {sessions.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs"
-                >
-                  <div>
-                    <div className="flex items-center justify-between text-xs text-indigo-600 font-semibold">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock size={14} /> {new Date(s.scheduledAt).toLocaleString()}
-                      </span>
-                      <span>{s.groupName}</span>
-                    </div>
-                    <h3 className="mt-2 text-base font-bold text-slate-900">{s.title}</h3>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {s.description || 'Sesión sincrónica de estudio grupal.'}
-                    </p>
-                  </div>
-
-                  {s.meetingUrl && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
-                      <a
-                        href={s.meetingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                      >
-                        <Video size={14} /> Unirse a la Llamada
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          {activeTab === 'docs' && renderDocuments()}
+          {activeTab === 'sessions' && renderSessions()}
+          {activeTab === 'chat' && <GroupChat groupId={numericGroupId} onSeen={handleChatSeen} />}
+          {activeTab === 'members' && renderMembers()}
         </>
       )}
 
       <DocumentUploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
-        onSubmitDocument={handleUploadGroupDoc}
-        modalTitle="Subir Documento Privado al Grupo"
+        onSubmitDocument={handleUpload}
+        modalTitle="Subir documento privado al grupo"
       />
 
       <ScheduleSessionModal
         isOpen={isSessionModalOpen}
         onClose={() => setIsSessionModalOpen(false)}
-        onSchedule={handleScheduleSession}
+        onSchedule={handleSaveSession}
+        session={editingSession}
       />
 
-      <ReviewModal
-        document={selectedDocForReview}
-        onClose={() => setSelectedDocForReview(null)}
+      <ReviewModal document={selectedDocForReview} onClose={() => setSelectedDocForReview(null)} />
+
+      <SessionReviewsModal
+        groupId={numericGroupId}
+        session={reviewingSession}
+        onClose={() => setReviewingSession(null)}
+        onSubmitReview={reviewSession}
+      />
+
+      <RecordingModal session={recordingSession} onClose={() => setRecordingSession(null)} onSave={updateRecording} />
+
+      <RecordingPlayerModal session={watchingSession} onClose={() => setWatchingSession(null)} />
+
+      <ReportModal target={reportTarget} onClose={() => setReportTarget(null)} />
+
+      <InviteModal group={inviteOpen ? group : null} onClose={() => setInviteOpen(false)} />
+
+      <ConfirmModal
+        isOpen={sessionToDelete !== null}
+        title="Eliminar sesión"
+        message={
+          <>
+            «<span className="font-semibold text-slate-900">{sessionToDelete?.title}</span>» desaparecerá para todos
+            los miembros del grupo. Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Eliminar"
+        loadingLabel="Eliminando..."
+        destructive
+        loading={deletingSession}
+        icon={<Trash2 size={14} />}
+        onConfirm={handleDeleteSession}
+        onClose={() => setSessionToDelete(null)}
+      />
+
+      <JoinPrivateGroupModal
+        group={askPassword ? group : null}
+        onClose={() => setAskPassword(false)}
+        onJoin={joinWithPassword}
+        onJoined={(joined) => {
+          setAskPassword(false);
+          markJoined(joined);
+          refreshMyGroups();
+        }}
       />
     </div>
   );

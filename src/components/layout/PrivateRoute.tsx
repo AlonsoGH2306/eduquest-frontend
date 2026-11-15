@@ -1,25 +1,20 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Spinner } from '../common/Spinner';
 
 interface PrivateRouteProps {
-  requireAdmin?: boolean;
+  requireUserManagement?: boolean;
 }
 
-export const PrivateRoute: React.FC<PrivateRouteProps> = ({ requireAdmin = false }) => {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+export const PrivateRoute: React.FC<PrivateRouteProps> = ({ requireUserManagement = false }) => {
+  const { isAuthenticated, canManageUsers } = useAuth();
   const location = useLocation();
-
-  if (isLoading) {
-    return <Spinner fullScreen label="Verificando sesión..." />;
-  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (requireAdmin && !isAdmin) {
+  if (requireUserManagement && !canManageUsers) {
     return <Navigate to="/dashboard" replace />;
   }
 
