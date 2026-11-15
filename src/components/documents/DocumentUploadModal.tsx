@@ -9,6 +9,8 @@ interface FormValues {
   description: string;
   fileUrl: string;
   tagsInput: string;
+  course: string;
+  university: string;
 }
 
 interface DocumentUploadModalProps {
@@ -39,14 +41,20 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
           .filter(Boolean)
       : [];
 
-    await onSubmitDocument({
-      title: values.title.trim(),
-      description: values.description.trim(),
-      fileUrl: values.fileUrl.trim(),
-      tags,
-    });
-    reset();
-    onClose();
+    try {
+      await onSubmitDocument({
+        title: values.title.trim(),
+        description: values.description?.trim() ?? '',
+        fileUrl: values.fileUrl.trim(),
+        tags,
+        course: values.course?.trim() || undefined,
+        university: values.university?.trim() || undefined,
+      });
+      reset();
+      onClose();
+    } catch {
+      return;
+    }
   };
 
   return (
@@ -93,6 +101,35 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
           />
           {errors.fileUrl && <p className="mt-1 text-xs text-red-600">{errors.fileUrl.message}</p>}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="document-course" className="block text-xs font-semibold text-slate-700">
+              Curso (opcional)
+            </label>
+            <input
+              id="document-course"
+              type="text"
+              placeholder="Cálculo I"
+              {...register('course', { maxLength: { value: 100, message: 'Máximo 100 caracteres' } })}
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
+            />
+            {errors.course && <p className="mt-1 text-xs text-red-600">{errors.course.message}</p>}
+          </div>
+          <div>
+            <label htmlFor="document-university" className="block text-xs font-semibold text-slate-700">
+              Universidad o colegio (opcional)
+            </label>
+            <input
+              id="document-university"
+              type="text"
+              placeholder="UTEC"
+              {...register('university', { maxLength: { value: 100, message: 'Máximo 100 caracteres' } })}
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
+            />
+            {errors.university && <p className="mt-1 text-xs text-red-600">{errors.university.message}</p>}
+          </div>
         </div>
 
         <div>

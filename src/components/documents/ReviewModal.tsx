@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Star, Send } from 'lucide-react';
+import { CalendarDays, Pencil, Send, Star, Trash2, X } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Spinner } from '../common/Spinner';
+import { ConfirmModal } from '../common/ConfirmModal';
 import { DocumentResponse, ReviewResponse } from '../../types';
-import { documentService } from '../../api/documentService';
-import { extractErrorMessage } from '../../api/axiosInstance';
+import { useReviews } from '../../hooks/useReviews';
+import { extractErrorMessage } from '../../utils/errors';
+import { useAuth } from '../../hooks/useAuth';
+import { formatDateTime } from '../../utils/formatDate';
 
 interface ReviewFormValues {
   rating: number;
@@ -19,8 +22,13 @@ interface ReviewModalProps {
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) => {
-  const [reviews, setReviews] = useState<ReviewResponse[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+  const { reviews, loading, error, reload, averageRating, addReview, editReview, removeReview } = useReviews(
+    document?.id ?? null
+  );
+  const [editingReview, setEditingReview] = useState<ReviewResponse | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<ReviewResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -31,34 +39,36 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
     defaultValues: { rating: 5, comment: '' },
   });
 
-  useEffect(() => {
-    if (!document) return;
-    const controller = new AbortController();
-    setLoading(true);
-
-    documentService
-      .getReviewsByDocument(document.id, controller.signal)
-      .then((data) => setReviews(data))
-      .catch((err) => {
-        if (err.name !== 'CanceledError') {
-          toast.error(extractErrorMessage(err));
-        }
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [document]);
-
   if (!document) return null;
+
+  const startEditing = (review: ReviewResponse) => {
+    setEditingReview(review);
+    reset({ rating: review.rating, comment: review.comment ?? '' });
+  };
+
+  const cancelEditing = () => {
+    setEditingReview(null);
+    reset({ rating: 5, comment: '' });
+  };
+
+  const handleClose = () => {
+    cancelEditing();
+    onClose();
+  };
 
   const onSubmit = async (values: ReviewFormValues) => {
     try {
-      const created = await documentService.createReview({
-        documentId: document.id,
-        rating: Number(values.rating),
-        comment: values.comment.trim(),
-      });
-      setReviews((prev) => [created, ...prev]);
+      if (editingReview) {
+        await editReview(editingReview.id, {
+          rating: Number(values.rating),
+          comment: values.comment.trim(),
+        });
+        cancelEditing();
+        toast.success('Reseña actualizada');
+        return;
+      }
+
+      await addReview(Number(values.rating), values.comment.trim());
       reset({ rating: 5, comment: '' });
       toast.success('¡Reseña publicada!');
     } catch (error) {
@@ -66,10 +76,55 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
     }
   };
 
+  const confirmDelete = async () => {
+    if (!reviewToDelete) return;
+    setDeleting(true);
+    try {
+      await removeReview(reviewToDelete.id);
+      if (editingReview?.id === reviewToDelete.id) cancelEditing();
+      toast.success('Reseña eliminada');
+      setReviewToDelete(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const ownReview = reviews.find((review) => review.authorUsername === user?.username);
+
   return (
-    <Modal isOpen={Boolean(document)} onClose={onClose} title={`Reseñas: ${document.title}`}>
+    <>
+    <Modal isOpen={Boolean(document)} onClose={handleClose} title={`Reseñas: ${document.title}`}>
       <div className="space-y-5">
+        {averageRating !== null && (
+          <p className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+            <Star size={14} className="text-amber-500" fill="currentColor" />
+            <strong className="text-slate-900">{averageRating.toFixed(1)}</strong> de 5 · {reviews.length}{' '}
+            {reviews.length === 1 ? 'reseña' : 'reseñas'}
+          </p>
+        )}
+        {ownReview && !editingReview ? (
+          <p className="rounded-xl bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
+            Ya dejaste tu reseña para este documento. Puedes editarla o eliminarla desde la lista.
+          </p>
+        ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="rounded-xl bg-slate-50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-700">
+              {editingReview ? 'Editando tu reseña' : 'Deja tu reseña'}
+            </p>
+            {editingReview && (
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                <X size={12} /> Cancelar edición
+              </button>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-700">Calificación (1 a 5)</label>
             <select
@@ -105,14 +160,27 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
               disabled={isSubmitting}
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              <Send size={12} /> {isSubmitting ? 'Enviando...' : 'Publicar Reseña'}
+              {editingReview ? <Pencil size={12} /> : <Send size={12} />}
+              {isSubmitting
+                ? 'Guardando...'
+                : editingReview
+                  ? 'Guardar cambios'
+                  : 'Publicar Reseña'}
             </button>
           </div>
         </form>
+        )}
 
         <div className="max-h-60 space-y-2.5 overflow-y-auto pr-1">
           {loading ? (
             <Spinner size={22} label="Cargando reseñas..." />
+          ) : error ? (
+            <p className="py-4 text-center text-xs text-red-600">
+              {error}{' '}
+              <button type="button" onClick={reload} className="font-semibold underline">
+                Reintentar
+              </button>
+            </p>
           ) : reviews.length === 0 ? (
             <p className="py-4 text-center text-xs text-slate-500">
               Aún no hay reseñas para este documento. ¡Sé el primero en opinar!
@@ -121,10 +189,41 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
             reviews.map((rev) => (
               <div key={rev.id} className="rounded-xl border border-slate-200 p-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-800">@{rev.reviewerUsername}</span>
-                  <span className="inline-flex items-center gap-0.5 font-bold text-amber-500">
-                    <Star size={12} fill="currentColor" /> {rev.rating}/5
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-slate-800">@{rev.authorUsername}</span>
+                    {rev.createdAt && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                        <CalendarDays size={10} /> {formatDateTime(rev.createdAt)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-0.5 font-bold text-amber-500">
+                      <Star size={12} fill="currentColor" /> {rev.rating}/5
+                    </span>
+                    {user?.username === rev.authorUsername && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => startEditing(rev)}
+                          title="Editar mi reseña"
+                          aria-label="Editar mi reseña"
+                          className="rounded-lg border border-slate-200 p-1 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReviewToDelete(rev)}
+                          title="Eliminar mi reseña"
+                          aria-label="Eliminar mi reseña"
+                          className="rounded-lg border border-slate-200 p-1 text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-1 text-slate-600">{rev.comment}</p>
               </div>
@@ -133,5 +232,18 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
         </div>
       </div>
     </Modal>
+    <ConfirmModal
+      isOpen={reviewToDelete !== null}
+      title="Eliminar reseña"
+      message="Tu reseña y su calificación desaparecerán de este documento. No se puede deshacer."
+      confirmLabel="Eliminar"
+      loadingLabel="Eliminando..."
+      destructive
+      loading={deleting}
+      icon={<Trash2 size={14} />}
+      onConfirm={confirmDelete}
+      onClose={() => setReviewToDelete(null)}
+    />
+    </>
   );
 };

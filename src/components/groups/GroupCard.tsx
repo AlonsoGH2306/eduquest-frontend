@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowRight, UserPlus, User } from 'lucide-react';
+import { Users, ArrowRight, UserPlus, User, Lock, Check } from 'lucide-react';
 import { GroupResponse } from '../../types';
+import { VisibilityBadge } from './VisibilityBadge';
 
 interface GroupCardProps {
   group: GroupResponse;
-  onJoin: (groupId: number) => Promise<void>;
+  onJoin: (group: GroupResponse) => void;
   joiningId: number | null;
 }
 
@@ -28,18 +29,32 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
         <p className="mt-1.5 line-clamp-2 text-xs text-slate-600">
           {group.description || 'Grupo colaborativo de estudio universitario.'}
         </p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+          <VisibilityBadge visibility={group.visibility} />
+          <span className="text-slate-500">
+            {group.memberCount === 1 ? '1 miembro' : `${group.memberCount} miembros`}
+          </span>
+          <span className="font-mono tracking-wider text-slate-400">#{group.code}</span>
+        </div>
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <button
-          type="button"
-          disabled={joiningId === group.id}
-          onClick={() => onJoin(group.id)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
-        >
-          <UserPlus size={14} />
-          {joiningId === group.id ? 'Uniéndose...' : 'Unirse'}
-        </button>
+        {group.member ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+            <Check size={14} /> Ya eres miembro
+          </span>
+        ) : (
+          <button
+            type="button"
+            disabled={joiningId === group.id}
+            onClick={() => onJoin(group)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+          >
+            {group.visibility === 'PRIVATE' ? <Lock size={14} /> : <UserPlus size={14} />}
+            {joiningId === group.id ? 'Uniéndose...' : 'Unirse'}
+          </button>
+        )}
 
         <button
           type="button"
