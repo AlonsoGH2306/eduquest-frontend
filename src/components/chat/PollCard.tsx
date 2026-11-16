@@ -26,7 +26,7 @@ export const PollCard: React.FC<PollCardProps> = ({ poll, currentUserId, onVote 
   };
 
   return (
-    <div className="w-72 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+    <div className="w-72 max-w-full rounded-3xl border border-slate-200 bg-white p-3">
       <p className="flex items-start gap-2 text-sm font-semibold text-slate-900">
         <BarChart3 size={16} className="mt-0.5 shrink-0 text-indigo-600" /> {poll.question}
       </p>

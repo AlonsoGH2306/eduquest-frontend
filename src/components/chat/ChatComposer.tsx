@@ -161,9 +161,9 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   };
 
   return (
-    <div className="border-t border-slate-100">
+    <div className="px-4 pb-4">
       {context && (
-        <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 text-xs">
+        <div className="flex items-center gap-2 rounded-t-lg bg-slate-50 px-3 py-2 text-xs">
           {context.mode === 'reply' ? (
             <CornerUpLeft size={14} className="shrink-0 text-indigo-600" />
           ) : (
@@ -182,7 +182,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
           </button>
         </div>
       )}
-      <div className="flex items-center gap-0.5 px-3 pt-2">
+      <div className="flex items-center gap-0.5 py-1">
         <button type="button" onClick={() => wrapSelection('**')} className={formatButton} aria-label="Negrita" title="Negrita">
           <Bold size={14} />
         </button>
@@ -199,7 +199,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
           Escribe @ para mencionar · Shift+Enter para salto de línea
         </span>
       </div>
-      <form onSubmit={submit} className="relative flex items-end gap-2 p-3 pt-1.5">
+      <form onSubmit={submit} className="relative flex items-end gap-1 rounded-lg bg-slate-100 px-2 py-1.5">
         {!editing && (
           <>
             <ChatAttachButton disabled={sending} onUploaded={(attachment) => run(draft.trim(), attachment)} />
@@ -248,13 +248,13 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
           onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
           onKeyDown={onKeyDown}
           placeholder={editing ? 'Edita tu mensaje (Esc para cancelar)' : placeholder}
-          className="max-h-32 flex-1 resize-none rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
+          className="max-h-40 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-hidden"
         />
         <button
           type="submit"
           disabled={sending || !draft.trim()}
           aria-label={editing ? 'Guardar cambios' : 'Enviar mensaje'}
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:opacity-40"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-indigo-500 transition hover:bg-slate-200 disabled:text-slate-400 disabled:opacity-60"
         >
           {editing ? <Pencil size={16} /> : <Send size={16} />}
         </button>

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { groupService } from '../services/groupService';
 import {
   DocumentRequest,
+  GroupAppearance,
   GroupMember,
   GroupResponse,
   GroupUpdateRequest,
@@ -35,7 +36,7 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
   const sessions = useFetch(fetchSessions, { enabled: isMember && activeTab === 'sessions' });
 
   const fetchMembers = useCallback((signal: AbortSignal) => groupService.getGroupMembers(groupId, signal), [groupId]);
-  const members = useFetch(fetchMembers, { enabled: isMember && (activeTab === 'members' || activeTab === 'chat') });
+  const members = useFetch(fetchMembers, { enabled: isMember });
 
   const { reload: reloadDocuments } = documents;
   const { reload: reloadSessions, setData: setSessions } = sessions;
@@ -141,6 +142,15 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
     [groupId]
   );
 
+  const updateAppearance = useCallback(
+    async (payload: GroupAppearance) => {
+      const updated = await groupService.updateAppearance(groupId, payload);
+      setJoinedGroup(updated);
+      return updated;
+    },
+    [groupId]
+  );
+
   const removeMember = useCallback(
     async (member: GroupMember) => {
       await groupService.removeMember(groupId, member.id);
@@ -198,6 +208,7 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
     reloadSessions,
     reloadMembers: members.reload,
     updateGroup,
+    updateAppearance,
     removeMember,
     setModerator,
     setMuted,

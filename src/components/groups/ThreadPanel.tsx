@@ -6,8 +6,8 @@ import { useRealtimeEvents } from '../../hooks/useRealtime';
 import { ChatAttachment, GroupMessage } from '../../types';
 import { extractErrorMessage, isCanceledError } from '../../utils/errors';
 import { mergeById, replaceMessage } from '../../utils/chatMessages';
-import { UserAvatar } from '../common/UserAvatar';
 import { Spinner } from '../common/Spinner';
+import { ChatRow } from '../chat/ChatRow';
 import { MessageBubble } from '../chat/MessageBubble';
 import { ChatComposer } from '../chat/ChatComposer';
 import { PanelShell } from './ChatSidePanels';
@@ -96,20 +96,24 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   };
 
   const renderMessage = (message: GroupMessage, isRoot: boolean) => (
-    <div key={message.id} className="flex gap-2">
-      <UserAvatar username={message.authorUsername} avatarUrl={message.authorAvatarUrl} size={28} />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-slate-700">@{message.authorUsername}</p>
-        <MessageBubble
-          message={{ ...message, mine: false }}
-          currentUserId={currentUserId}
-          myUsername={myUsername}
-          canDelete={!isRoot && (message.authorId === currentUserId || canModerate)}
-          onDelete={() => void remove(message)}
-          onReact={(emoji) => void react(message, emoji)}
-        />
-      </div>
-    </div>
+    <ChatRow
+      key={message.id}
+      authorId={message.authorId}
+      username={message.authorUsername}
+      avatarUrl={message.authorAvatarUrl}
+      advisor={message.authorAdvisor}
+      createdAt={message.createdAt}
+      grouped={false}
+    >
+      <MessageBubble
+        message={{ ...message, mine: false }}
+        currentUserId={currentUserId}
+        myUsername={myUsername}
+        canDelete={!isRoot && (message.authorId === currentUserId || canModerate)}
+        onDelete={() => void remove(message)}
+        onReact={(emoji) => void react(message, emoji)}
+      />
+    </ChatRow>
   );
 
   return (
@@ -118,9 +122,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         <Spinner label="Cargando hilo..." />
       ) : (
         <>
-          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-3">
+          <div ref={listRef} className="flex-1 overflow-y-auto pb-3">
             {renderMessage(root, true)}
-            <p className="border-b border-slate-100 pb-1 text-[11px] font-semibold text-slate-400">
+            <p className="mx-4 mt-3 border-b border-slate-200 pb-1 text-xs font-semibold text-slate-400">
               {replies.length === 1 ? '1 respuesta' : `${replies.length} respuestas`}
             </p>
             {replies.map((reply) => renderMessage(reply, false))}

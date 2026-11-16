@@ -72,7 +72,7 @@ export const ChatAttachButton: React.FC<ChatAttachButtonProps> = ({ disabled, on
         disabled={disabled || uploading}
         aria-label="Adjuntar imagen, video o archivo"
         title="Adjuntar imagen, video o archivo"
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 disabled:opacity-40"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40"
       >
         {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
       </button>

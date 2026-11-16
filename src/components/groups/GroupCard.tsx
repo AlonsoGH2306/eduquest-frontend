@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ArrowRight, UserPlus, User, Lock, Check } from 'lucide-react';
+import { ArrowRight, UserPlus, User, Lock, Check } from 'lucide-react';
 import { GroupResponse } from '../../types';
 import { VisibilityBadge } from './VisibilityBadge';
+import { GroupAvatar, GroupBanner } from './GroupAvatar';
 
 interface GroupCardProps {
   group: GroupResponse;
@@ -14,15 +15,14 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-            <Users size={20} />
-          </div>
+    <div className="flex flex-col justify-between overflow-hidden rounded-2xl bg-raised transition hover:-translate-y-0.5 hover:shadow-lg">
+      <GroupBanner group={group} className="h-16" />
+      <div className="px-4 pb-4">
+        <div className="-mt-7 mb-2 flex items-end justify-between gap-2">
+          <GroupAvatar group={group} size={56} radius={18} className="relative ring-[5px] ring-[var(--eq-raised)]" />
           {group.creatorUsername && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-              <User size={11} /> Creador: @{group.creatorUsername}
+            <span className="inline-flex min-w-0 items-center gap-1 truncate text-[11px] font-medium text-slate-500">
+              <User size={11} className="shrink-0" /> @{group.creatorUsername}
             </span>
           )}
         </div>
@@ -41,7 +41,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      <div className="flex items-center justify-between gap-2 px-4 pb-4">
         {group.member ? (
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
             <Check size={14} /> Ya eres miembro
@@ -51,7 +51,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
             type="button"
             disabled={joiningId === group.id}
             onClick={() => onJoin(group)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
           >
             {group.visibility === 'PRIVATE' ? <Lock size={14} /> : <UserPlus size={14} />}
             {joiningId === group.id ? 'Uniéndose...' : 'Unirse'}
@@ -61,9 +61,9 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
         <button
           type="button"
           onClick={() => navigate(`/groups/${group.id}`, { state: { group } })}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-600"
+          className="inline-flex items-center gap-1.5 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-indigo-600 hover:text-white"
         >
-          Abrir Grupo <ArrowRight size={13} />
+          Abrir grupo <ArrowRight size={13} />
         </button>
       </div>
     </div>

@@ -1,11 +1,12 @@
 import { axiosInstance } from './axiosInstance';
 import {
-  DocumentRequest,
-  DocumentResponse,
-  GroupInvite,
   ChannelSettings,
   ChannelSummary,
+  DocumentRequest,
+  DocumentResponse,
+  GroupAppearance,
   GroupChannel,
+  GroupInvite,
   GroupMember,
   GroupMessage,
   GroupRequest,
@@ -16,12 +17,12 @@ import {
   PollRequest,
   SavedMessage,
   SendMessagePayload,
-  StudyRoom,
-  VoiceRoom,
   SessionReviewRequest,
   SessionReviewResponse,
+  StudyRoom,
   StudySessionRequest,
   StudySessionResponse,
+  VoiceRoom,
 } from '../types';
 
 export const groupService = {
@@ -215,6 +216,11 @@ export const groupService = {
 
   async updateGroup(groupId: number, payload: GroupUpdateRequest): Promise<GroupResponse> {
     const { data } = await axiosInstance.put<GroupResponse>(`/groups/${groupId}`, payload);
+    return data;
+  },
+
+  async updateAppearance(groupId: number, payload: GroupAppearance): Promise<GroupResponse> {
+    const { data } = await axiosInstance.put<GroupResponse>(`/groups/${groupId}/appearance`, payload);
     return data;
   },
 

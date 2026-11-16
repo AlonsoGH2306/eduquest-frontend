@@ -105,12 +105,12 @@ export const StickerPicker: React.FC<StickerPickerProps> = ({ disabled, onPick }
         aria-label="Enviar un sticker"
         title="Stickers"
         aria-expanded={open}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 disabled:opacity-40"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40"
       >
         <StickerIcon size={16} />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 z-30 mb-2 w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute bottom-full left-0 z-30 mb-2 w-80 rounded-3xl border border-slate-200 bg-white p-3 shadow-xl">
           <div className="mb-2 flex gap-1 rounded-xl bg-slate-50 p-1">
             <button type="button" className={tabClass(tab === 'pack')} onClick={() => setTab('pack')}>
               EduQuest

@@ -79,6 +79,15 @@ export interface GroupResponse {
   muted?: boolean;
   canManage?: boolean;
   unreadMentions?: number;
+  color?: string | null;
+  iconUrl?: string | null;
+  bannerUrl?: string | null;
+}
+
+export interface GroupAppearance {
+  color: string | null;
+  iconUrl: string | null;
+  bannerUrl: string | null;
 }
 
 export interface GroupInvite {
@@ -103,6 +112,7 @@ export interface GroupRequest {
   description: string;
   visibility: GroupVisibility;
   password?: string;
+  color?: string;
 }
 
 export interface StudySessionResponse {

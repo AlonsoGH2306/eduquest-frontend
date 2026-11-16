@@ -1,26 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Calendar, CalendarDays, FileText, Lock, LogOut, Plus, Trash2, UserMinus, UserPlus, Users } from 'lucide-react';
 import {
-  Bell,
-  BellOff,
-  Calendar,
-  FileText,
-  Headphones,
-  Lock,
-  LogOut,
-  MessagesSquare,
-  Pencil,
-  Plus,
-  Send,
-  Trash2,
-  UserMinus,
-  UserPlus,
-  Users,
-} from 'lucide-react';
-import {
+  ChannelSettings,
   DocumentRequest,
   DocumentResponse,
+  GroupChannel,
   GroupMember,
   GroupResponse,
   StudySessionRequest,
@@ -38,7 +24,6 @@ import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
 import { ConfirmModal } from '../components/common/ConfirmModal';
-import { TabButton } from '../components/common/TabButton';
 import { DocumentCard } from '../components/documents/DocumentCard';
 import { DocumentUploadModal } from '../components/documents/DocumentUploadModal';
 import { ReviewModal } from '../components/documents/ReviewModal';
@@ -49,15 +34,22 @@ import { MemberList } from '../components/groups/MemberList';
 import { useOnlineMembers } from '../hooks/useOnlineMembers';
 import { useGroupLive } from '../hooks/useGroupLive';
 import { StudyRoomCard } from '../components/groups/StudyRoomCard';
-import { UserAvatar } from '../components/common/UserAvatar';
 import { VisibilityBadge } from '../components/groups/VisibilityBadge';
 import { GroupChat } from '../components/groups/GroupChat';
+import { GroupMobileNav, GroupSidebar } from '../components/groups/GroupSidebar';
+import { GroupMembersPanel } from '../components/groups/GroupMembersPanel';
+import { GroupAppearanceModal } from '../components/groups/GroupAppearanceModal';
+import { GroupAvatar, GroupBanner } from '../components/groups/GroupAvatar';
+import { ChannelModal } from '../components/groups/ChannelModal';
+import { Lumi } from '../components/brand/Lumi';
+import { useGroupChannels } from '../hooks/useGroupChannels';
 import { InviteModal } from '../components/groups/InviteModal';
 import { EditGroupModal } from '../components/groups/EditGroupModal';
 import { SessionReviewsModal } from '../components/groups/SessionReviewsModal';
 import { RecordingModal } from '../components/groups/RecordingModal';
 import { RecordingPlayerModal } from '../components/groups/RecordingPlayerModal';
 import { ReportModal, ReportTarget } from '../components/reports/ReportModal';
+import { orderSessions } from '../utils/sessionOrder';
 
 const TABS: GroupTab[] = ['docs', 'sessions', 'chat', 'members'];
 
@@ -71,7 +63,7 @@ export const GroupDetailPage: React.FC = () => {
 
   const { page, size, setPage, setSize, searchParams, updateParams } = usePageParams();
   const tabParam = searchParams.get('tab') as GroupTab | null;
-  const activeTab: GroupTab = tabParam && TABS.includes(tabParam) ? tabParam : 'docs';
+  const activeTab: GroupTab = tabParam && TABS.includes(tabParam) ? tabParam : 'chat';
 
   const {
     group,
@@ -97,6 +89,7 @@ export const GroupDetailPage: React.FC = () => {
     reloadSessions,
     reloadMembers,
     updateGroup,
+    updateAppearance,
     removeMember,
     setModerator,
     setMuted,
@@ -121,8 +114,12 @@ export const GroupDetailPage: React.FC = () => {
   const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  const { groups: myGroups, markSeen, markChatSeen, refresh: refreshMyGroups } = useMyGroups();
-  const unreadMessages = myGroups.find((mine) => mine.id === numericGroupId)?.unreadMessages ?? 0;
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [channelModal, setChannelModal] = useState<{ open: boolean; channel: GroupChannel | null }>({ open: false, channel: null });
+  const [channelToDelete, setChannelToDelete] = useState<GroupChannel | null>(null);
+  const [deletingChannel, setDeletingChannel] = useState(false);
+
+  const { markSeen, markChatSeen, refresh: refreshMyGroups } = useMyGroups();
   const handleChatSeen = useCallback(() => {
     markChatSeen(numericGroupId).catch(() => undefined);
   }, [markChatSeen, numericGroupId]);
@@ -137,12 +134,14 @@ export const GroupDetailPage: React.FC = () => {
   const canManageGroup = Boolean(group?.canManage) || isOwner;
   const channelParam = Number(searchParams.get('channel'));
   const activeChannelId = Number.isInteger(channelParam) && channelParam > 0 ? channelParam : null;
-  const onlineMembers = useOnlineMembers(numericGroupId, isMember && activeTab === 'members');
+  const onlineMembers = useOnlineMembers(numericGroupId, isMember);
   const messageParam = Number(searchParams.get('message'));
   const focusMessageId = Number.isInteger(messageParam) && messageParam > 0 ? messageParam : null;
   const [joiningVoice, setJoiningVoice] = useState(false);
   const live = useGroupLive(numericGroupId, isMember);
   const inVoice = live.voice.participants.some((participant) => participant.id === user?.id);
+  const channelState = useGroupChannels(numericGroupId, activeChannelId);
+  const shownChannelId = activeChannelId ?? channelState.channels[0]?.id ?? null;
 
   const clearMessageParam = useCallback(() => updateParams({ message: null }), [updateParams]);
 
@@ -227,7 +226,37 @@ export const GroupDetailPage: React.FC = () => {
     }
   };
 
-  const changeTab = (tab: GroupTab) => updateParams({ tab: tab === 'docs' ? null : tab });
+  const changeTab = (tab: GroupTab) => updateParams({ tab: tab === 'chat' ? null : tab, message: null });
+
+  const selectChannel = (channelId: number, messageId?: number) =>
+    updateParams({ tab: null, channel: String(channelId), message: messageId ? String(messageId) : null });
+
+  const saveChannel = async (settings: ChannelSettings) => {
+    if (channelModal.channel) {
+      await channelState.updateChannel(channelModal.channel.id, settings);
+    } else {
+      const created = await channelState.createChannel(settings);
+      selectChannel(created.id);
+    }
+  };
+
+  const confirmDeleteChannel = async () => {
+    if (!channelToDelete) return;
+    setDeletingChannel(true);
+    try {
+      await channelState.deleteChannel(channelToDelete.id);
+      if (channelToDelete.id === shownChannelId) {
+        const next = channelState.channels.find((channel) => channel.id !== channelToDelete.id);
+        if (next) selectChannel(next.id);
+      }
+      toast.success(`Canal #${channelToDelete.name} eliminado`);
+      setChannelToDelete(null);
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setDeletingChannel(false);
+    }
+  };
 
   const handleJoin = async () => {
     if (group?.visibility === 'PRIVATE') {
@@ -377,7 +406,7 @@ export const GroupDetailPage: React.FC = () => {
     }
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {sessions.map((session) => (
+        {orderSessions(sessions).map((session) => (
           <SessionCard
             key={session.id}
             session={session}
@@ -412,206 +441,181 @@ export const GroupDetailPage: React.FC = () => {
     );
   };
 
-  return (
-    <div>
-      <Breadcrumbs items={[{ label: 'Grupos de estudio', to: '/groups' }, { label: groupName }]} />
+  const studyRoom = (
+    <StudyRoomCard
+      room={live.studyRoom}
+      currentUserId={user?.id}
+      canManage={canManageGroup}
+      onStart={live.startStudyRoom}
+      onAction={live.studyRoomAction}
+    />
+  );
 
-      <div className="mb-6 flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{groupName}</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {group?.description || 'Documentos y sesiones de estudio compartidos solo con los miembros del grupo.'}
-          </p>
-          {group?.code && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <VisibilityBadge visibility={group.visibility} />
-              <span className="text-slate-500">
-                Código <span className="font-mono font-semibold tracking-wider text-slate-800">{group.code}</span>
-              </span>
-              {group.creatorUsername && (
-                <span className="text-slate-500">· Creado por @{group.creatorUsername}</span>
-              )}
-            </div>
-          )}
-        </div>
+  const navProps = {
+    activeTab,
+    activeChannelId: shownChannelId,
+    channels: channelState.channels,
+    documentsCount: documents.totalElements,
+    memberCount: group?.memberCount ?? members.length,
+    voice: live.voice.participants,
+    inVoice,
+    joiningVoice,
+    onSelectTab: changeTab,
+    onSelectChannel: (channelId: number) => selectChannel(channelId),
+    onToggleVoice: () => void toggleVoice(),
+  };
 
-        {isMember && (
-          <div className="flex flex-wrap gap-2">
+  const TAB_HEADER: Record<Exclude<GroupTab, 'chat'>, { title: string; Icon: React.ElementType }> = {
+    docs: { title: 'Material del grupo', Icon: FileText },
+    sessions: { title: 'Asesorías', Icon: CalendarDays },
+    members: { title: 'Integrantes', Icon: Users },
+  };
+
+  const renderTabPanel = (tab: Exclude<GroupTab, 'chat'>) => {
+    const { title, Icon } = TAB_HEADER[tab];
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="flex h-12 shrink-0 items-center gap-2 px-4 shadow-[0_1px_0_rgb(0_0_0/0.18)]">
+          <Icon size={18} className="shrink-0 text-faint" />
+          <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold text-slate-900">{title}</h2>
+          {tab === 'docs' && (
             <button
               type="button"
               onClick={() => setIsUploadOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700"
             >
-              <Plus size={15} /> Subir documento
+              <Plus size={15} /> Subir material
             </button>
-            <button
-              type="button"
-              onClick={() => void toggleVoice()}
-              disabled={joiningVoice}
-              title={
-                live.voice.participants.length > 0
-                  ? `En la sala: ${live.voice.participants.map((participant) => `@${participant.username}`).join(', ')}`
-                  : 'Nadie está en la sala de voz'
-              }
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold disabled:opacity-50 ${
-                inVoice
-                  ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-              }`}
-            >
-              <Headphones size={15} /> {joiningVoice ? 'Abriendo...' : inVoice ? 'Salir de la sala' : 'Sala de voz'}
-              {live.voice.participants.length > 0 && (
-                <span className="flex -space-x-1.5">
-                  {live.voice.participants.slice(0, 3).map((participant) => (
-                    <span key={participant.id} className="rounded-full ring-2 ring-white">
-                      <UserAvatar username={participant.username} avatarUrl={participant.avatarUrl} size={18} />
-                    </span>
-                  ))}
-                  {live.voice.participants.length > 3 && (
-                    <span className="pl-2 text-[10px]">+{live.voice.participants.length - 3}</span>
-                  )}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => void toggleMuted()}
-              aria-label={group?.muted ? 'Activar avisos del grupo' : 'Silenciar el grupo'}
-              title={group?.muted ? 'Activar avisos del grupo' : 'Silenciar el grupo'}
-              aria-pressed={Boolean(group?.muted)}
-              className={`inline-flex items-center rounded-xl border px-2.5 py-2 ${
-                group?.muted
-                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-700'
-              }`}
-            >
-              {group?.muted ? <BellOff size={15} /> : <Bell size={15} />}
-            </button>
+          )}
+          {tab === 'sessions' && (
             <button
               type="button"
               onClick={() => openSessionModal(null)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700"
             >
-              <Calendar size={15} /> Agendar sesión
+              <Calendar size={15} /> Agendar asesoría
             </button>
-            {isOwner && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setInviteOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
-                >
-                  <Send size={15} /> Invitar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditOpen(true)}
-                  aria-label="Editar grupo"
-                  title="Editar grupo"
-                  className="inline-flex items-center rounded-xl border border-slate-200 px-2.5 py-2 text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
-                >
-                  <Pencil size={15} />
-                </button>
-              </>
-            )}
-            {(isOwner || isAdmin) && (
-              <button
-                type="button"
-                onClick={() => setGroupAction('delete')}
-                aria-label="Eliminar grupo"
-                title="Eliminar grupo"
-                className="inline-flex items-center rounded-xl border border-slate-200 px-2.5 py-2 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-              >
-                <Trash2 size={15} />
-              </button>
-            )}
-            {!isOwner && (
-              <button
-                type="button"
-                onClick={() => setGroupAction('leave')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-              >
-                <LogOut size={15} /> Salir
-              </button>
-            )}
-          </div>
-        )}
+          )}
+        </header>
+        <div className="eq-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          {tab === 'docs' && renderDocuments()}
+          {tab === 'sessions' && renderSessions()}
+          {tab === 'members' && renderMembers()}
+        </div>
       </div>
+    );
+  };
 
+  return (
+    <div className="h-full min-h-0">
       {!isMember ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-amber-200 bg-amber-50/60 p-10 text-center">
-          <div className="mb-3 rounded-full bg-amber-100 p-3 text-amber-700">
-            <Lock size={28} />
+        <div className="eq-scroll h-full overflow-y-auto">
+          <div className="mx-auto max-w-4xl px-4 py-6 sm:px-8 sm:py-8">
+            <Breadcrumbs items={[{ label: 'Grupos de estudio', to: '/groups' }, { label: groupName }]} />
+            <div className="overflow-hidden rounded-3xl bg-raised">
+              <GroupBanner group={group ?? { name: groupName }} className="h-36" />
+              <div className="px-6 pb-8">
+                <GroupAvatar
+                  group={group ?? { name: groupName }}
+                  size={80}
+                  radius={26}
+                  className="relative -mt-10 mb-3 ring-[6px] ring-[var(--eq-raised)]"
+                />
+                <h1 className="text-2xl break-words text-slate-900 sm:text-3xl">{groupName}</h1>
+                <p className="mt-1 text-[15px] text-slate-600">
+                  {group?.description || 'Un grupo de estudio de EduQuest con chat, material y asesorías.'}
+                </p>
+                {group && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <VisibilityBadge visibility={group.visibility} />
+                    <span className="text-slate-500">
+                      {group.memberCount === 1 ? '1 integrante' : `${group.memberCount} integrantes`}
+                    </span>
+                    {group.creatorUsername && <span className="text-slate-500">· Creado por @{group.creatorUsername}</span>}
+                  </div>
+                )}
+                <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl bg-slate-50 p-5">
+                  <Lumi mood="sleepy" size={64} animated={false} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-900">Contenido exclusivo para integrantes</p>
+                    <p className="text-sm text-slate-600">
+                      {group?.visibility === 'PRIVATE'
+                        ? 'Es privado: necesitas la contraseña que te compartió su creador.'
+                        : 'Únete para ver el chat, los apuntes y las asesorías del grupo.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleJoin}
+                    disabled={joining}
+                    className="inline-flex h-11 items-center gap-2 rounded-full bg-mint px-6 text-sm font-bold text-noche hover:brightness-105 disabled:opacity-50"
+                  >
+                    {group?.visibility === 'PRIVATE' ? <Lock size={16} /> : <UserPlus size={16} />}
+                    {joining ? 'Uniéndote...' : 'Unirme al grupo'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <h2 className="text-lg font-bold text-slate-900">Contenido exclusivo para miembros</h2>
-          <p className="mt-1 max-w-md text-xs text-slate-600">
-            {group?.visibility === 'PRIVATE'
-              ? 'Este grupo es privado: necesitas la contraseña que te compartió su creador para entrar.'
-              : 'Únete para ver los apuntes del grupo y los enlaces de sus sesiones.'}
-          </p>
-          <button
-            type="button"
-            onClick={handleJoin}
-            disabled={joining}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <UserPlus size={16} /> {joining ? 'Uniéndote...' : 'Unirme a este grupo'}
-          </button>
         </div>
       ) : (
-        <>
-          <StudyRoomCard
-            room={live.studyRoom}
+        <div className="flex h-full min-h-0">
+          <GroupSidebar
+            {...navProps}
+            group={group}
+            groupName={groupName}
+            canManageChannels={canManageGroup || isAdmin}
+            studyRoom={studyRoom}
+            onCreateChannel={() => setChannelModal({ open: true, channel: null })}
+            onEditChannel={(channel) => setChannelModal({ open: true, channel })}
+            onDeleteChannel={setChannelToDelete}
+            menu={{
+              muted: Boolean(group?.muted),
+              canCustomize: canManageGroup,
+              canEdit: isOwner,
+              canInvite: isOwner,
+              canDelete: isOwner || isAdmin,
+              canLeave: !isOwner,
+              onCustomize: () => setAppearanceOpen(true),
+              onEdit: () => setEditOpen(true),
+              onInvite: () => setInviteOpen(true),
+              onToggleMute: () => void toggleMuted(),
+              onDelete: () => setGroupAction('delete'),
+              onLeave: () => setGroupAction('leave'),
+            }}
+          />
+          <div className="flex min-w-0 flex-1 flex-col bg-canvas">
+            <GroupMobileNav {...navProps} groupName={groupName} />
+            {activeTab === 'chat' ? (
+              <GroupChat
+                groupId={numericGroupId}
+                canManage={canManageGroup}
+                members={members}
+                channels={channelState.channels}
+                channelsLoading={channelState.loading}
+                channelsError={channelState.error}
+                markRead={channelState.markRead}
+                channelId={activeChannelId}
+                messageId={focusMessageId}
+                onChannelChange={selectChannel}
+                onMessageShown={clearMessageParam}
+                onSeen={handleChatSeen}
+              />
+            ) : (
+              renderTabPanel(activeTab)
+            )}
+          </div>
+          <GroupMembersPanel
+            members={members}
+            onlineIds={onlineMembers}
+            voice={live.voice.participants}
+            studyRoom={live.studyRoom}
             currentUserId={user?.id}
             canManage={canManageGroup}
-            onStart={live.startStudyRoom}
-            onAction={live.studyRoomAction}
+            onStartStudy={live.startStudyRoom}
+            onStudyAction={live.studyRoomAction}
           />
-          <div role="tablist" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
-            <TabButton
-              active={activeTab === 'docs'}
-              onClick={() => changeTab('docs')}
-              icon={<FileText size={15} />}
-              label={`Documentos (${documents.totalElements})`}
-            />
-            <TabButton
-              active={activeTab === 'sessions'}
-              onClick={() => changeTab('sessions')}
-              icon={<Calendar size={15} />}
-              label="Sesiones de estudio"
-            />
-            <TabButton
-              active={activeTab === 'chat'}
-              onClick={() => changeTab('chat')}
-              icon={<MessagesSquare size={15} />}
-              label={unreadMessages > 0 && activeTab !== 'chat' ? `Chat (${unreadMessages} nuevos)` : 'Chat'}
-            />
-            <TabButton
-              active={activeTab === 'members'}
-              onClick={() => changeTab('members')}
-              icon={<Users size={15} />}
-              label={group ? `Integrantes (${group.memberCount})` : 'Integrantes'}
-            />
-          </div>
-
-          {activeTab === 'docs' && renderDocuments()}
-          {activeTab === 'sessions' && renderSessions()}
-          {activeTab === 'chat' && (
-            <GroupChat
-              groupId={numericGroupId}
-              canManage={canManageGroup}
-              members={members}
-              channelId={activeChannelId}
-              messageId={focusMessageId}
-              onChannelChange={(channelId, messageId) =>
-                updateParams({ channel: String(channelId), message: messageId ? String(messageId) : null })
-              }
-              onMessageShown={clearMessageParam}
-              onSeen={handleChatSeen}
-            />
-          )}
-          {activeTab === 'members' && renderMembers()}
-        </>
+        </div>
       )}
 
       <DocumentUploadModal
@@ -646,6 +650,35 @@ export const GroupDetailPage: React.FC = () => {
       <InviteModal group={inviteOpen ? group : null} onClose={() => setInviteOpen(false)} />
 
       <EditGroupModal group={editOpen ? group : null} onClose={() => setEditOpen(false)} onSave={updateGroup} />
+
+      <GroupAppearanceModal
+        group={appearanceOpen ? group : null}
+        onClose={() => setAppearanceOpen(false)}
+        onSave={async (payload) => {
+          await updateAppearance(payload);
+          refreshMyGroups();
+        }}
+      />
+
+      <ChannelModal
+        isOpen={channelModal.open}
+        channel={channelModal.channel}
+        onClose={() => setChannelModal({ open: false, channel: null })}
+        onSave={saveChannel}
+      />
+
+      <ConfirmModal
+        isOpen={channelToDelete !== null}
+        title="Eliminar canal"
+        message={`Se borrarán #${channelToDelete?.name ?? ''} y todos sus mensajes. No se puede deshacer.`}
+        confirmLabel="Eliminar canal"
+        loadingLabel="Eliminando..."
+        destructive
+        loading={deletingChannel}
+        icon={<Trash2 size={14} />}
+        onConfirm={() => void confirmDeleteChannel()}
+        onClose={() => setChannelToDelete(null)}
+      />
 
       <ConfirmModal
         isOpen={groupAction !== null}

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Coffee, LogIn, LogOut, Square, Timer, Users } from 'lucide-react';
+import { LogIn, LogOut, Square } from 'lucide-react';
+import { Lumi } from '../brand/Lumi';
 import { StudyRoom } from '../../types';
 import { clockOffset, formatCountdown, phaseOf } from '../../utils/studyRoom';
 import { extractErrorMessage } from '../../utils/errors';
@@ -12,6 +13,7 @@ interface StudyRoomCardProps {
   canManage: boolean;
   onStart: (focusMinutes: number, breakMinutes: number) => Promise<void>;
   onAction: (action: 'join' | 'leave' | 'stop') => Promise<void>;
+  className?: string;
 }
 
 const PRESETS = [
@@ -20,7 +22,15 @@ const PRESETS = [
   { focus: 90, rest: 15, label: '90 / 15' },
 ];
 
-export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({ room, currentUserId, canManage, onStart, onAction }) => {
+export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({
+  room,
+  currentUserId,
+  canManage,
+  onStart,
+  onAction,
+  className = '',
+}) => {
+  const idSuffix = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [preset, setPreset] = useState(0);
@@ -48,25 +58,23 @@ export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({ room, currentUserI
 
   if (!room?.active || !phase) {
     return (
-      <section className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-3">
-          <span className="rounded-xl bg-indigo-50 p-2 text-indigo-600">
-            <Timer size={20} />
-          </span>
-          <div>
+      <section aria-label="Sala de estudio" className={`flex flex-col gap-3 rounded-2xl bg-raised p-4 ${className}`}>
+        <div className="flex items-center gap-3">
+          <Lumi mood="sleepy" size={48} animated={false} />
+          <div className="min-w-0">
             <p className="text-sm font-bold text-slate-900">Sala de estudio</p>
-            <p className="text-xs text-slate-500">Un Pomodoro compartido: todos estudian y descansan al mismo tiempo.</p>
+            <p className="text-xs text-slate-500">Un Pomodoro compartido: estudian y descansan a la vez.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="study-preset" className="sr-only">
-            Duración
+          <label htmlFor={`study-preset-${idSuffix}`} className="sr-only">
+            Duración del enfoque y del descanso
           </label>
           <select
-            id="study-preset"
+            id={`study-preset-${idSuffix}`}
             value={preset}
             onChange={(event) => setPreset(Number(event.target.value))}
-            className="rounded-xl border border-slate-200 px-2 py-2 text-xs"
+            className="h-10 min-w-0 flex-1 rounded-full bg-slate-100 px-3 text-sm"
           >
             {PRESETS.map((item, index) => (
               <option key={item.label} value={index}>
@@ -78,9 +86,9 @@ export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({ room, currentUserI
             type="button"
             disabled={busy}
             onClick={() => void run(() => onStart(PRESETS[preset].focus, PRESETS[preset].rest))}
-            className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="h-10 shrink-0 rounded-full bg-lumi px-4 text-sm font-bold text-noche hover:brightness-105 disabled:opacity-50"
           >
-            Iniciar sala
+            Encender
           </button>
         </div>
       </section>
@@ -88,55 +96,51 @@ export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({ room, currentUserI
   }
 
   const focus = phase.phase === 'FOCUS';
+  const people = room.participants.length;
   return (
     <section
-      className={`mb-6 flex flex-col gap-4 rounded-2xl border p-4 shadow-xs sm:flex-row sm:items-center ${
-        focus ? 'border-indigo-200 bg-indigo-50' : 'border-emerald-200 bg-emerald-50'
-      }`}
+      aria-label="Sala de estudio"
       aria-live="polite"
+      className={`flex flex-col gap-2 rounded-2xl p-4 ${focus ? 'eq-live bg-[#24204f] text-white' : 'bg-raised'} ${className}`}
     >
-      <div className="flex items-center gap-4">
-        <span className={`rounded-xl p-2 ${focus ? 'bg-indigo-600 text-white' : 'bg-emerald-600 text-white'}`}>
-          {focus ? <Timer size={22} /> : <Coffee size={22} />}
-        </span>
-        <div>
-          <p className={`text-xs font-bold tracking-wide uppercase ${focus ? 'text-indigo-700' : 'text-emerald-700'}`}>
-            {focus ? 'Concentración' : 'Descanso'} · ronda {phase.round}
-          </p>
-          <p className="font-mono text-3xl font-bold text-slate-900">{formatCountdown(phase.secondsLeft)}</p>
-        </div>
-      </div>
-      <div className="flex flex-1 items-center gap-2">
-        <Users size={14} className="text-slate-500" />
+      <p className={`text-xs font-extrabold ${focus ? 'text-lumi' : 'text-mint-ink'}`}>
+        Sala de estudio · {focus ? 'Enfoque' : 'Descanso'}
+      </p>
+      <p className={`font-display text-4xl font-extrabold tabular-nums ${focus ? 'text-white' : 'text-slate-900'}`}>
+        {formatCountdown(phase.secondsLeft)}
+      </p>
+      <p className={`text-sm ${focus ? 'text-[#c8c4ff]' : 'text-slate-600'}`}>
+        Ronda {phase.round} · {people === 1 ? '1 estudiando' : `${people} estudiando`}
+      </p>
+      {people > 0 && (
         <div className="flex -space-x-2">
           {room.participants.slice(0, 6).map((participant) => (
-            <span key={participant.id} title={`@${participant.username}`} className="rounded-full ring-2 ring-white">
-              <UserAvatar username={participant.username} avatarUrl={participant.avatarUrl} size={28} />
+            <span key={participant.id} title={`@${participant.username}`} className="rounded-full ring-2 ring-[#24204f]">
+              <UserAvatar username={participant.username} avatarUrl={participant.avatarUrl} size={26} />
             </span>
           ))}
         </div>
-        <span className="text-xs text-slate-600">
-          {room.participants.length === 1 ? '1 persona estudiando' : `${room.participants.length} personas estudiando`}
-        </span>
-      </div>
-      <div className="flex gap-2">
+      )}
+      <div className="mt-1 flex gap-2">
         {joined ? (
           <button
             type="button"
             disabled={busy}
             onClick={() => void run(() => onAction('leave'))}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className={`inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-bold disabled:opacity-50 ${
+              focus ? 'bg-white/15 hover:bg-white/25' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+            }`}
           >
-            <LogOut size={14} /> Salir
+            <LogOut size={15} /> Salir
           </button>
         ) : (
           <button
             type="button"
             disabled={busy}
             onClick={() => void run(() => onAction('join'))}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-lumi text-sm font-bold text-noche hover:brightness-105 disabled:opacity-50"
           >
-            <LogIn size={14} /> Unirme
+            <LogIn size={15} /> Unirme
           </button>
         )}
         {canStop && (
@@ -144,9 +148,11 @@ export const StudyRoomCard: React.FC<StudyRoomCardProps> = ({ room, currentUserI
             type="button"
             disabled={busy}
             onClick={() => void run(() => onAction('stop'))}
-            aria-label="Terminar sala de estudio"
-            title="Terminar sala"
-            className="rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-slate-600 hover:text-red-600"
+            aria-label="Apagar la sala de estudio"
+            title="Apagar la sala"
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-50 ${
+              focus ? 'bg-white/15 hover:bg-red-500' : 'bg-slate-100 text-slate-700 hover:bg-red-500 hover:text-white'
+            }`}
           >
             <Square size={14} />
           </button>

@@ -79,7 +79,7 @@ export const ModerationModal: React.FC<ModerationModalProps> = ({ groupId, isOpe
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >
             Cancelar
           </button>
@@ -87,7 +87,7 @@ export const ModerationModal: React.FC<ModerationModalProps> = ({ groupId, isOpe
             type="button"
             onClick={() => void save()}
             disabled={saving || loading || words.length > MAX_WORDS}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <Save size={14} /> {saving ? 'Guardando...' : 'Guardar'}
           </button>

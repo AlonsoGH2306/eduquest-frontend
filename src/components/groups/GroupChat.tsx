@@ -1,25 +1,21 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
-import { BarChart3, Hash, Megaphone, MessagesSquare, Pin, Search, ShieldAlert, Sparkles, Timer, Trash2 } from 'lucide-react';
+import { BarChart3, Hash, Megaphone, Pin, Search, ShieldAlert, Sparkles, Timer, Trash2 } from 'lucide-react';
 import { useGroupChat } from '../../hooks/useGroupChat';
-import { useGroupChannels } from '../../hooks/useGroupChannels';
 import { useAuth } from '../../hooks/useAuth';
 import { groupService } from '../../services/groupService';
-import { ChannelSettings, ChatAttachment, GroupChannel, GroupMember, GroupMessage } from '../../types';
+import { ChatAttachment, GroupChannel, GroupMember, GroupMessage } from '../../types';
 import { extractErrorMessage } from '../../utils/errors';
-import { UserAvatar } from '../common/UserAvatar';
-import { AdvisorBadge } from '../common/AdvisorBadge';
 import { Spinner } from '../common/Spinner';
 import { ErrorState } from '../common/ErrorState';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { uploadChatFile } from '../chat/ChatAttachButton';
+import { ChatRow, DaySeparator, withinGroupWindow } from '../chat/ChatRow';
 import { MessageBubble } from '../chat/MessageBubble';
 import { ChatComposer } from '../chat/ChatComposer';
 import { TypingIndicator } from '../chat/TypingIndicator';
 import { useChatActions } from '../chat/useChatActions';
-import { ChannelSidebar } from './ChannelSidebar';
-import { ChannelModal } from './ChannelModal';
+import { Lumi } from '../brand/Lumi';
 import { CreatePollModal } from './CreatePollModal';
 import { PinsPanel, SearchPanel } from './ChatSidePanels';
 import { ThreadPanel } from './ThreadPanel';
@@ -27,6 +23,7 @@ import { ModerationModal } from './ModerationModal';
 import { SummaryModal } from './SummaryModal';
 
 const DAY = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
+const TIME = new Intl.DateTimeFormat('es-PE', { hour: '2-digit', minute: '2-digit' });
 
 const dayKey = (value: string) => new Date(value).toDateString();
 
@@ -36,6 +33,10 @@ interface GroupChatProps {
   groupId: number;
   canManage: boolean;
   members: GroupMember[];
+  channels: GroupChannel[];
+  channelsLoading: boolean;
+  channelsError: string | null;
+  markRead: (channelId: number) => void;
   channelId: number | null;
   messageId: number | null;
   onChannelChange: (channelId: number, messageId?: number) => void;
@@ -44,12 +45,16 @@ interface GroupChatProps {
 }
 
 const headerButton =
-  'inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600';
+  'inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900';
 
 export const GroupChat: React.FC<GroupChatProps> = ({
   groupId,
   canManage,
   members,
+  channels,
+  channelsLoading,
+  channelsError,
+  markRead,
   channelId,
   messageId,
   onChannelChange,
@@ -57,8 +62,6 @@ export const GroupChat: React.FC<GroupChatProps> = ({
   onSeen,
 }) => {
   const { user, canManageUsers } = useAuth();
-  const channelState = useGroupChannels(groupId, channelId);
-  const { channels } = channelState;
   const activeChannel = channels.find((channel) => channel.id === channelId) ?? channels[0] ?? null;
   const chat = useGroupChat(groupId, activeChannel?.id ?? null, true);
   const { messages, loading, error, hasOlder, loadingOlder, typingNames, notifyTyping, loadOlder } = chat;
@@ -67,14 +70,23 @@ export const GroupChat: React.FC<GroupChatProps> = ({
   const stickToBottom = useRef(true);
   const [panel, setPanel] = useState<SidePanel>(null);
   const [pinsVersion, setPinsVersion] = useState(0);
-  const [channelModal, setChannelModal] = useState<{ open: boolean; channel: GroupChannel | null }>({ open: false, channel: null });
-  const [channelToDelete, setChannelToDelete] = useState<GroupChannel | null>(null);
-  const [deletingChannel, setDeletingChannel] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const [moderationOpen, setModerationOpen] = useState(false);
   const [summaryFor, setSummaryFor] = useState<GroupChannel | null>(null);
-  const { markRead } = channelState;
   const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+  const [newSince, setNewSince] = useState<{ channelId: number; count: number } | null>(null);
+  const activeChannelId = activeChannel?.id ?? null;
+  const activeUnread = activeChannel?.unreadCount ?? 0;
+
+  useEffect(() => {
+    if (activeChannelId === null) return;
+    setNewSince((current) =>
+      current?.channelId === activeChannelId ? current : { channelId: activeChannelId, count: activeUnread }
+    );
+  }, [activeChannelId, activeUnread]);
+
+  const newCount = newSince?.channelId === activeChannelId ? newSince.count : 0;
+  const firstNew = newCount > 0 && messages.length >= newCount ? messages[messages.length - newCount] : null;
   const canModerate = canManage || canManageUsers;
 
   const mentionCandidates = useMemo(
@@ -174,39 +186,12 @@ export const GroupChat: React.FC<GroupChatProps> = ({
     chat.addMessage(created);
   };
 
-  const saveChannel = async (settings: ChannelSettings) => {
-    if (channelModal.channel) {
-      await channelState.updateChannel(channelModal.channel.id, settings);
-    } else {
-      const created = await channelState.createChannel(settings);
-      onChannelChange(created.id);
-    }
-  };
-
-  const confirmDeleteChannel = async () => {
-    if (!channelToDelete) return;
-    setDeletingChannel(true);
-    try {
-      await channelState.deleteChannel(channelToDelete.id);
-      if (channelToDelete.id === activeChannel?.id) {
-        const next = channels.find((channel) => channel.id !== channelToDelete.id);
-        if (next) onChannelChange(next.id);
-      }
-      toast.success(`Canal #${channelToDelete.name} eliminado`);
-      setChannelToDelete(null);
-    } catch (err) {
-      toast.error(extractErrorMessage(err));
-    } finally {
-      setDeletingChannel(false);
-    }
-  };
-
   const togglePanel = useCallback((kind: 'pins' | 'search') => {
     setPanel((current) => (current?.kind === kind ? null : { kind }));
   }, []);
 
-  if (channelState.loading) return <Spinner label="Cargando canales..." />;
-  if (channelState.error) return <ErrorState message={channelState.error} />;
+  if (channelsLoading) return <Spinner label="Cargando canales..." />;
+  if (channelsError) return <ErrorState message={channelsError} />;
 
   const renderMessages = () => {
     if (loading) return <Spinner label="Cargando mensajes..." />;
@@ -214,98 +199,77 @@ export const GroupChat: React.FC<GroupChatProps> = ({
     if (messages.length === 0) {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-slate-400">
-          <MessagesSquare size={32} />
-          <p className="text-sm font-semibold text-slate-600">Aún no hay mensajes en #{activeChannel?.name}</p>
-          <p className="text-xs">Saluda al grupo o plantea tu primera duda.</p>
+          <Lumi mood="sleepy" size={96} animated={false} />
+          <p className="text-base font-semibold text-slate-700">Aquí está muy oscuro todavía</p>
+          <p className="text-sm">¿Quién enciende la primera luz en #{activeChannel?.name}?</p>
         </div>
       );
     }
     return messages.map((message, index) => {
       const previous = messages[index - 1];
       const newDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
-      const grouped = !newDay && previous?.authorId === message.authorId && !previous.poll && !message.poll;
+      const grouped =
+        !newDay &&
+        previous?.authorId === message.authorId &&
+        !previous.poll &&
+        !message.poll &&
+        withinGroupWindow(previous.createdAt, message.createdAt);
       return (
         <React.Fragment key={message.id}>
-          {newDay && (
-            <p className="py-2 text-center text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-              {DAY.format(new Date(message.createdAt))}
-            </p>
-          )}
-          <div
+          {newDay && <DaySeparator label={DAY.format(new Date(message.createdAt))} />}
+          <ChatRow
             id={`chat-message-${message.id}`}
-            className={`flex gap-2 rounded-xl transition-colors ${message.mine ? 'flex-row-reverse' : ''} ${grouped ? '' : 'pt-2'}`}
+            authorId={message.authorId}
+            username={message.authorUsername}
+            avatarUrl={message.authorAvatarUrl}
+            advisor={message.authorAdvisor}
+            createdAt={message.createdAt}
+            grouped={grouped}
           >
-            <div className="w-8 shrink-0">
-              {!grouped && !message.mine && (
-                <Link to={`/users/${message.authorId}`} aria-label={`Ver perfil de ${message.authorUsername}`}>
-                  <UserAvatar username={message.authorUsername} avatarUrl={message.authorAvatarUrl} size={32} />
-                </Link>
-              )}
-            </div>
-            <div className={`flex max-w-[80%] flex-col ${message.mine ? 'items-end' : 'items-start'}`}>
-              {!grouped && !message.mine && (
-                <span className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                  <Link to={`/users/${message.authorId}`} className="hover:text-indigo-600 hover:underline">
-                    @{message.authorUsername}
-                  </Link>
-                  {message.authorAdvisor && <AdvisorBadge compact />}
-                </span>
-              )}
-              <MessageBubble
-                message={message}
-                currentUserId={user?.id}
-                myUsername={user?.username}
-                canDelete={message.mine || canModerate}
-                canPin={canModerate}
-                onReply={() => actions.reply(message, message.authorUsername)}
-                onEdit={() => actions.edit(message)}
-                onDelete={() => actions.setToDelete(message)}
-                onJumpTo={actions.jumpTo}
-                onReact={(emoji) => runSafely(() => chat.toggleReaction(message.id, emoji))}
-                onOpenThread={() => setPanel({ kind: 'thread', rootId: message.id })}
-                onTogglePin={() => togglePin(message)}
-                onVote={chat.votePoll}
-                onToggleSaved={() =>
-                  runSafely(async () => {
-                    await chat.toggleSaved(message);
-                    toast.success(message.saved ? 'Quitado de guardados' : 'Guardado para después');
-                  })
-                }
-              />
-            </div>
-          </div>
+            <MessageBubble
+              message={message}
+              currentUserId={user?.id}
+              myUsername={user?.username}
+              canDelete={message.mine || canModerate}
+              canPin={canModerate}
+              onReply={() => actions.reply(message, message.authorUsername)}
+              onEdit={() => actions.edit(message)}
+              onDelete={() => actions.setToDelete(message)}
+              onJumpTo={actions.jumpTo}
+              onReact={(emoji) => runSafely(() => chat.toggleReaction(message.id, emoji))}
+              onOpenThread={() => setPanel({ kind: 'thread', rootId: message.id })}
+              onTogglePin={() => togglePin(message)}
+              onVote={chat.votePoll}
+              onToggleSaved={() =>
+                runSafely(async () => {
+                  await chat.toggleSaved(message);
+                  toast.success(message.saved ? 'Quitado de guardados' : 'Guardado para después');
+                })
+              }
+            />
+          </ChatRow>
         </React.Fragment>
       );
     });
   };
 
   return (
-    <div className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs md:h-[70vh] md:flex-row">
-      <ChannelSidebar
-        channels={channels}
-        activeId={activeChannel?.id ?? null}
-        canManage={canModerate}
-        onSelect={(channel) => onChannelChange(channel.id)}
-        onCreate={() => setChannelModal({ open: true, channel: null })}
-        onEdit={(channel) => setChannelModal({ open: true, channel })}
-        onDelete={setChannelToDelete}
-      />
-
+    <div className="flex h-full min-h-0 flex-1 bg-canvas">
       <section
         onDragOver={(event) => event.preventDefault()}
         onDrop={onDropFile}
-        className="flex min-h-[28rem] min-w-0 flex-1 flex-col"
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
       >
-        <header className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5">
+        <header className="flex h-12 shrink-0 items-center gap-2 px-4 shadow-[0_1px_0_rgb(0_0_0/0.18)]">
           {activeChannel?.readOnly ? (
             <Megaphone size={16} className="shrink-0 text-slate-400" />
           ) : (
             <Hash size={16} className="shrink-0 text-slate-400" />
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-900">{activeChannel?.name}</p>
-            {activeChannel?.topic && <p className="truncate text-[11px] text-slate-500">{activeChannel.topic}</p>}
-          </div>
+          <p className="flex min-w-0 flex-1 items-baseline gap-3 truncate">
+            <span className="text-[15px] font-bold text-slate-900">{activeChannel?.name}</span>
+            {activeChannel?.topic && <span className="hidden truncate text-sm text-slate-500 sm:inline">{activeChannel.topic}</span>}
+          </p>
           {activeChannel && activeChannel.slowModeSeconds > 0 && (
             <span
               className="hidden items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 sm:inline-flex"
@@ -314,7 +278,12 @@ export const GroupChat: React.FC<GroupChatProps> = ({
               <Timer size={12} /> {activeChannel.slowModeSeconds} s
             </span>
           )}
-          <button type="button" onClick={() => setSummaryFor(activeChannel)} className={headerButton} title="Resumen con IA">
+          <button
+            type="button"
+            onClick={() => setSummaryFor(activeChannel)}
+            title="Resumen con IA de lo que te perdiste"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-raised px-3 text-xs font-bold text-lumi-ink transition hover:brightness-110"
+          >
             <Sparkles size={14} /> <span className="hidden lg:inline">Ponme al día</span>
           </button>
           {canModerate && (
@@ -330,7 +299,26 @@ export const GroupChat: React.FC<GroupChatProps> = ({
           </button>
         </header>
 
-        <div ref={listRef} onScroll={onScroll} className="flex-1 space-y-1 overflow-y-auto px-4 py-4" aria-live="polite">
+        {newCount > 0 && !loading && (
+          <div className="mx-4 mt-3 flex items-center gap-3 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
+            <button
+              type="button"
+              onClick={() => firstNew && jumpTo(firstNew.id)}
+              className="min-w-0 flex-1 truncate text-left hover:underline"
+            >
+              {newCount === 1 ? '1 mensaje nuevo' : `${newCount > 99 ? 'Más de 99' : newCount} mensajes nuevos`}
+              {firstNew ? ` desde las ${TIME.format(new Date(firstNew.createdAt))}` : ''}
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewSince({ channelId: activeChannelId ?? 0, count: 0 })}
+              className="shrink-0 font-bold hover:underline"
+            >
+              Marcar como leído
+            </button>
+          </div>
+        )}
+        <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pt-2 pb-4" aria-live="polite">
           {hasOlder && !loading && (
             <div className="mb-3 text-center">
               <button
@@ -364,7 +352,7 @@ export const GroupChat: React.FC<GroupChatProps> = ({
                 onClick={() => setPollOpen(true)}
                 aria-label="Crear encuesta"
                 title="Crear encuesta"
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-200 hover:text-slate-800"
               >
                 <BarChart3 size={16} />
               </button>
@@ -400,12 +388,6 @@ export const GroupChat: React.FC<GroupChatProps> = ({
         <SearchPanel groupId={groupId} channelId={activeChannel.id} onSelect={goToMessage} onClose={() => setPanel(null)} />
       )}
 
-      <ChannelModal
-        isOpen={channelModal.open}
-        channel={channelModal.channel}
-        onClose={() => setChannelModal({ open: false, channel: null })}
-        onSave={saveChannel}
-      />
       <ModerationModal groupId={groupId} isOpen={moderationOpen} onClose={() => setModerationOpen(false)} />
       <SummaryModal
         groupId={groupId}
@@ -414,18 +396,6 @@ export const GroupChat: React.FC<GroupChatProps> = ({
         onClose={() => setSummaryFor(null)}
       />
       <CreatePollModal isOpen={pollOpen} onClose={() => setPollOpen(false)} onCreate={createPoll} />
-      <ConfirmModal
-        isOpen={channelToDelete !== null}
-        title="Eliminar canal"
-        message={`Se borrarán #${channelToDelete?.name ?? ''} y todos sus mensajes. No se puede deshacer.`}
-        confirmLabel="Eliminar canal"
-        loadingLabel="Eliminando..."
-        destructive
-        loading={deletingChannel}
-        icon={<Trash2 size={14} />}
-        onConfirm={() => void confirmDeleteChannel()}
-        onClose={() => setChannelToDelete(null)}
-      />
       <ConfirmModal
         isOpen={actions.toDelete !== null}
         title="Eliminar mensaje"

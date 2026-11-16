@@ -5,6 +5,7 @@ import { GroupResponse } from '../../types';
 import { timeAgo } from '../../utils/relativeTime';
 import { UnreadBadge } from '../common/UnreadBadge';
 import { VisibilityBadge } from './VisibilityBadge';
+import { GroupAvatar } from './GroupAvatar';
 
 const describeUnread = (group: GroupResponse) => {
   const parts: string[] = [];
@@ -38,9 +39,7 @@ export const MyGroupRow: React.FC<MyGroupRowProps> = ({ group, pinned = false, o
         unread > 0 ? 'border-indigo-200' : 'border-slate-200'
       }`}
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-700">
-        {group.name.slice(0, 2).toUpperCase()}
-      </div>
+      <GroupAvatar group={group} size={48} radius={16} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           {pinned && <Pin size={12} className="shrink-0 text-indigo-500" aria-label="Fijado" />}

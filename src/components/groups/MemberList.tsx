@@ -46,7 +46,7 @@ export const MemberList: React.FC<MemberListProps> = ({
       const role = ROLE_STYLES[member.groupRole];
       const online = onlineIds?.has(member.id) ?? false;
       return (
-        <li key={member.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <li key={member.id} className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4">
           <Link to={`/users/${member.id}`} aria-label={`Ver perfil de ${member.username}`} className="relative shrink-0">
             <UserAvatar username={member.username} avatarUrl={member.avatarUrl} size={44} />
             {onlineIds && (
