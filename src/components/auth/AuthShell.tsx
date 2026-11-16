@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Lumi } from '../brand/Lumi';
 import { ThemeToggle } from '../layout/ThemeToggle';
 
@@ -10,12 +11,17 @@ export const AuthShell: React.FC<AuthShellProps> = ({ children }) => (
   <div className="eq-stars relative isolate flex min-h-screen overflow-hidden bg-[#141634]">
     <span aria-hidden="true" className="absolute -top-40 -left-32 -z-10 h-[34rem] w-[34rem] rounded-full bg-[#262170]" />
     <span aria-hidden="true" className="absolute -right-24 -bottom-48 -z-10 h-[28rem] w-[28rem] rounded-full bg-[#1b1757]" />
+    <Link to="/" className="absolute top-5 left-5 font-display text-base font-extrabold text-white lg:hidden">
+      EDUQUEST
+    </Link>
     <div className="absolute top-4 right-4 rounded-full bg-white/10 text-white">
       <ThemeToggle />
     </div>
 
     <section className="hidden flex-1 flex-col justify-between p-12 text-white lg:flex">
-      <p className="font-display text-xl font-extrabold">EDUQUEST</p>
+      <Link to="/" className="font-display text-xl font-extrabold">
+        EDUQUEST
+      </Link>
       <div>
         <Lumi mood="happy" size={180} label="Lumi, la luciérnaga de EduQuest" />
         <p className="mt-6 max-w-md font-display text-4xl leading-tight font-extrabold">ESTUDIAR JUNTOS ILUMINA</p>

@@ -8,6 +8,7 @@ import { MyGroupsProvider } from '../contexts/MyGroupsContext';
 import { SavedDocumentsProvider } from '../contexts/SavedDocumentsContext';
 import { NotificationsProvider } from '../contexts/NotificationsContext';
 
+const LandingPage = lazy(() => import('../pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('../pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
@@ -50,8 +51,8 @@ const ProtectedLayout: React.FC = () => (
 export const AppRoutes: React.FC = () => (
   <Suspense fallback={<Spinner fullScreen label="Cargando EduQuest..." />}>
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route element={<PublicOnlyRoute />}>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
       </Route>
