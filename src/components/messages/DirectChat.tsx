@@ -14,6 +14,7 @@ import { Spinner } from '../common/Spinner';
 import { ErrorState } from '../common/ErrorState';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { uploadChatFile } from '../chat/ChatAttachButton';
+import { ChatRow, DaySeparator, withinGroupWindow } from '../chat/ChatRow';
 import { MessageBubble } from '../chat/MessageBubble';
 import { ChatComposer } from '../chat/ChatComposer';
 import { TypingIndicator } from '../chat/TypingIndicator';
@@ -92,7 +93,7 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
 
   return (
     <section onDragOver={(event) => event.preventDefault()} onDrop={onDropImage} className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+      <header className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[0_1px_0_rgb(0_0_0/0.18)]">
         <Link
           to="/messages"
           aria-label="Volver a las conversaciones"
@@ -136,7 +137,7 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
           <ErrorState message={error} />
         </div>
       ) : (
-        <div ref={listRef} onScroll={onScroll} className="flex-1 space-y-1 overflow-y-auto px-4 py-4" aria-live="polite">
+        <div ref={listRef} onScroll={onScroll} className="flex-1 overflow-y-auto pt-2 pb-4" aria-live="polite">
           {hasOlder && (
             <div className="mb-3 text-center">
               <button
@@ -160,30 +161,28 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
             messages.map((message, index) => {
               const previous = messages[index - 1];
               const newDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
-              const grouped = !newDay && previous?.mine === message.mine;
+              const grouped = !newDay && previous?.mine === message.mine && withinGroupWindow(previous.createdAt, message.createdAt);
               return (
                 <React.Fragment key={message.id}>
-                  {newDay && (
-                    <p className="py-2 text-center text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-                      {DAY.format(new Date(message.createdAt))}
-                    </p>
-                  )}
-                  <div
+                  {newDay && <DaySeparator label={DAY.format(new Date(message.createdAt))} />}
+                  <ChatRow
                     id={`chat-message-${message.id}`}
-                    className={`flex rounded-xl transition-colors ${message.mine ? 'justify-end' : 'justify-start'} ${grouped ? '' : 'pt-2'}`}
+                    authorId={message.mine ? (user?.id ?? partner.id) : partner.id}
+                    username={message.mine ? (user?.username ?? '') : partner.username}
+                    avatarUrl={message.mine ? user?.avatarUrl : partner.avatarUrl}
+                    createdAt={message.createdAt}
+                    grouped={grouped}
                   >
-                    <div className="max-w-[80%]">
-                      <MessageBubble
-                        message={message}
-                        canDelete={message.mine}
-                        onReply={() => actions.reply(message, message.mine ? (user?.username ?? '') : partner.username)}
-                        onEdit={() => actions.edit(message)}
-                        onDelete={() => actions.setToDelete(message)}
-                        onJumpTo={actions.jumpTo}
-                        myUsername={user?.username}
-                      />
-                    </div>
-                  </div>
+                    <MessageBubble
+                      message={message}
+                      canDelete={message.mine}
+                      onReply={() => actions.reply(message, message.mine ? (user?.username ?? '') : partner.username)}
+                      onEdit={() => actions.edit(message)}
+                      onDelete={() => actions.setToDelete(message)}
+                      onJumpTo={actions.jumpTo}
+                      myUsername={user?.username}
+                    />
+                  </ChatRow>
                 </React.Fragment>
               );
             })

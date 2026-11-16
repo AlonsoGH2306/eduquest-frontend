@@ -6,10 +6,10 @@ import { ChatAttachment, ChatRoom } from '../../types';
 import { useRoomChat } from '../../hooks/useRoomChat';
 import { roomService } from '../../services/roomService';
 import { extractErrorMessage } from '../../utils/errors';
-import { UserAvatar } from '../common/UserAvatar';
 import { Spinner } from '../common/Spinner';
 import { ErrorState } from '../common/ErrorState';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { ChatRow, DaySeparator, withinGroupWindow } from '../chat/ChatRow';
 import { MessageBubble } from '../chat/MessageBubble';
 import { ChatComposer } from '../chat/ChatComposer';
 import { useChatActions } from '../chat/useChatActions';
@@ -81,7 +81,7 @@ export const RoomChat: React.FC<RoomChatProps> = ({ room, myUsername, onRead, on
       }}
       className="flex h-full min-h-0 flex-col"
     >
-      <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+      <header className="flex h-14 shrink-0 items-center gap-3 px-4 shadow-[0_1px_0_rgb(0_0_0/0.18)]">
         <Link to="/messages" aria-label="Volver a las conversaciones" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 md:hidden">
           <ArrowLeft size={18} />
         </Link>
@@ -127,7 +127,7 @@ export const RoomChat: React.FC<RoomChatProps> = ({ room, myUsername, onRead, on
             const list = listRef.current;
             if (list) stickToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
           }}
-          className="flex-1 space-y-1 overflow-y-auto px-4 py-4"
+          className="flex-1 overflow-y-auto pt-2 pb-4"
           aria-live="polite"
         >
           {hasOlder && (
@@ -148,40 +148,28 @@ export const RoomChat: React.FC<RoomChatProps> = ({ room, myUsername, onRead, on
           {messages.map((message, index) => {
             const previous = messages[index - 1];
             const newDay = !previous || new Date(previous.createdAt).toDateString() !== new Date(message.createdAt).toDateString();
-            const grouped = !newDay && previous?.authorId === message.authorId;
+            const grouped = !newDay && previous?.authorId === message.authorId && withinGroupWindow(previous.createdAt, message.createdAt);
             return (
               <React.Fragment key={message.id}>
-                {newDay && (
-                  <p className="py-2 text-center text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-                    {DAY.format(new Date(message.createdAt))}
-                  </p>
-                )}
-                <div
+                {newDay && <DaySeparator label={DAY.format(new Date(message.createdAt))} />}
+                <ChatRow
                   id={`chat-message-${message.id}`}
-                  className={`flex gap-2 rounded-xl transition-colors ${message.mine ? 'flex-row-reverse' : ''} ${grouped ? '' : 'pt-2'}`}
+                  authorId={message.authorId}
+                  username={message.authorUsername}
+                  avatarUrl={message.authorAvatarUrl}
+                  createdAt={message.createdAt}
+                  grouped={grouped}
                 >
-                  <div className="w-8 shrink-0">
-                    {!grouped && !message.mine && (
-                      <Link to={`/users/${message.authorId}`} aria-label={`Ver perfil de ${message.authorUsername}`}>
-                        <UserAvatar username={message.authorUsername} avatarUrl={message.authorAvatarUrl} size={32} />
-                      </Link>
-                    )}
-                  </div>
-                  <div className={`flex max-w-[80%] flex-col ${message.mine ? 'items-end' : 'items-start'}`}>
-                    {!grouped && !message.mine && (
-                      <span className="mb-0.5 text-xs font-semibold text-slate-700">@{message.authorUsername}</span>
-                    )}
-                    <MessageBubble
-                      message={message}
-                      myUsername={myUsername}
-                      canDelete={message.mine}
-                      onReply={() => actions.reply(message, message.authorUsername)}
-                      onEdit={() => actions.edit(message)}
-                      onDelete={() => actions.setToDelete(message)}
-                      onJumpTo={actions.jumpTo}
-                    />
-                  </div>
-                </div>
+                  <MessageBubble
+                    message={message}
+                    myUsername={myUsername}
+                    canDelete={message.mine}
+                    onReply={() => actions.reply(message, message.authorUsername)}
+                    onEdit={() => actions.edit(message)}
+                    onDelete={() => actions.setToDelete(message)}
+                    onJumpTo={actions.jumpTo}
+                  />
+                </ChatRow>
               </React.Fragment>
             );
           })}

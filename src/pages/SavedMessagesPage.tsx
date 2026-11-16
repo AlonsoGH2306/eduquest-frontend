@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Bookmark, BookmarkX, Hash } from 'lucide-react';
+import { ArrowRight, Bookmark, BookmarkX, Hash } from 'lucide-react';
 import { useFetch } from '../hooks/useFetch';
 import { groupService } from '../services/groupService';
 import { SavedMessage } from '../types';
@@ -48,35 +48,47 @@ export const SavedMessagesPage: React.FC = () => {
         />
       ) : (
         <ul className="space-y-3">
-          {(data ?? []).map((item) => (
-            <li key={item.message.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
-                <UserAvatar username={item.message.authorUsername} avatarUrl={item.message.authorAvatarUrl} size={24} />
-                <span className="font-semibold text-slate-800">@{item.message.authorUsername}</span>
-                <span>·</span>
-                <Link
-                  to={`/groups/${item.groupId}?tab=chat&channel=${item.message.channelId ?? ''}&message=${item.message.id}`}
-                  className="inline-flex items-center gap-0.5 font-medium text-indigo-600 hover:underline"
-                >
-                  {item.groupName} <Hash size={11} />
-                  {item.channelName}
-                </Link>
-                <span className="ml-auto">{WHEN.format(new Date(item.message.createdAt))}</span>
-                <button
-                  type="button"
-                  onClick={() => void remove(item)}
-                  aria-label="Quitar de guardados"
-                  title="Quitar de guardados"
-                  className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                >
-                  <BookmarkX size={14} />
-                </button>
-              </div>
-              <div className="text-sm text-slate-700">
-                {item.message.content ? <RichText content={item.message.content} /> : previewOf(item.message) || 'Encuesta'}
-              </div>
-            </li>
-          ))}
+          {(data ?? []).map((item) => {
+            const target = `/groups/${item.groupId}?channel=${item.message.channelId ?? ''}&message=${item.message.id}`;
+            return (
+              <li key={item.message.id} className="group/saved relative rounded-3xl border border-slate-200 bg-white p-4 transition hover:border-indigo-300">
+                <div className="flex items-start gap-3">
+                  <UserAvatar username={item.message.authorUsername} avatarUrl={item.message.authorAvatarUrl} size={40} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span className="text-sm font-bold text-slate-900">@{item.message.authorUsername}</span>
+                      <span className="text-xs text-slate-400">{WHEN.format(new Date(item.message.createdAt))}</span>
+                    </div>
+                    <div className="mt-0.5 text-[15px] break-words text-slate-700">
+                      {item.message.content ? <RichText content={item.message.content} /> : previewOf(item.message) || 'Encuesta'}
+                    </div>
+                    <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                      {item.groupName} <Hash size={11} />
+                      {item.channelName ?? 'general'}
+                    </p>
+                  </div>
+                  <div className="relative z-10 flex shrink-0 items-center gap-1">
+                    <Link
+                      to={target}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-600 px-4 text-sm font-bold text-white transition hover:bg-indigo-700"
+                    >
+                      Ir al mensaje <ArrowRight size={15} />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void remove(item)}
+                      aria-label="Quitar de guardados"
+                      title="Quitar de guardados"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <BookmarkX size={16} />
+                    </button>
+                  </div>
+                </div>
+                <Link to={target} aria-hidden="true" tabIndex={-1} className="absolute inset-0 rounded-3xl" />
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

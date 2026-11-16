@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MessageCircle, Pin, PinOff, Search, Users, X } from 'lucide-react';
+import { MessageCircle, Pin, PinOff, Plus, Search, Users, X } from 'lucide-react';
 import { ChatRoom, Conversation, UserSummary } from '../types';
 import { messageService } from '../services/messageService';
 import { useConversations } from '../hooks/useConversations';
@@ -20,6 +20,8 @@ import { useRooms } from '../hooks/useRooms';
 import { usePinnedChats } from '../hooks/usePinnedChats';
 import { useAuth } from '../hooks/useAuth';
 import { roomService } from '../services/roomService';
+import { Lumi } from '../components/brand/Lumi';
+import { UserPanel } from '../components/layout/UserPanel';
 
 type ChatEntry =
   | { kind: 'DIRECT'; id: number; at: string; conversation: Conversation }
@@ -129,24 +131,13 @@ export const MessagesPage: React.FC = () => {
   const showingSearch = debouncedSearch.replace(/^@/, '').length >= 2;
 
   return (
-    <div className="flex h-[calc(100vh-11rem)] min-h-[28rem] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs md:h-[calc(100vh-9rem)]">
+    <div className="flex h-full min-h-0 bg-canvas">
+      <h1 className="sr-only">Mensajes</h1>
       <aside
-        className={`w-full shrink-0 flex-col border-r border-slate-100 md:flex md:w-80 ${chatOpen ? 'hidden' : 'flex'}`}
+        className={`w-full shrink-0 flex-col bg-side md:flex md:w-72 ${chatOpen ? 'hidden' : 'flex'}`}
       >
-        <div className="border-b border-slate-100 p-4">
-          <div className="flex items-center justify-between">
-            <h1 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <MessageCircle size={20} className="text-indigo-600" /> Mensajes
-            </h1>
-            <button
-              type="button"
-              onClick={() => setRoomModalOpen(true)}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
-            >
-              <Users size={13} /> Chat grupal
-            </button>
-          </div>
-          <div className="relative mt-3">
+        <div className="px-3 pt-3 pb-2">
+          <div className="relative">
             <Search size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
             <label htmlFor="people-search" className="sr-only">
               Buscar personas
@@ -157,7 +148,7 @@ export const MessagesPage: React.FC = () => {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar por @usuario"
               autoComplete="off"
-              className="w-full rounded-xl border border-slate-300 py-2 pr-9 pl-9 text-sm focus:border-indigo-500 focus:outline-hidden"
+              className="h-9 w-full rounded-lg bg-canvas pr-9 pl-9 text-sm text-ink placeholder:text-faint focus:ring-2 focus:ring-indigo-500/40 focus:outline-hidden"
             />
             {search && (
               <button
@@ -172,7 +163,20 @@ export const MessagesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <h2 className="text-xs font-bold text-faint">Mensajes directos</h2>
+          <button
+            type="button"
+            onClick={() => setRoomModalOpen(true)}
+            aria-label="Crear chat grupal"
+            title="Crear chat grupal"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-faint hover:bg-hover hover:text-ink"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+
+        <div className="eq-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {showingSearch ? (
             searching ? (
               <Spinner label="Buscando..." />
@@ -185,7 +189,7 @@ export const MessagesPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => openChat(user)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-hover"
                     >
                       <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size={36} />
                       <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
@@ -210,7 +214,7 @@ export const MessagesPage: React.FC = () => {
               <p className="text-xs">Busca a alguien por su usuario o crea un chat grupal.</p>
             </div>
           ) : (
-            <ul>
+            <ul className="space-y-0.5">
               {entries.map((entry) => {
                 const pinned = isPinned(entry.kind, entry.id);
                 const active = entry.kind === 'DIRECT' ? entry.id === partnerId : entry.id === roomId;
@@ -224,7 +228,7 @@ export const MessagesPage: React.FC = () => {
                   <li key={`${entry.kind}-${entry.id}`} className="group relative">
                     <Link
                       to={entry.kind === 'DIRECT' ? `/messages/${entry.id}` : `/messages/rooms/${entry.id}`}
-                      className={`flex items-center gap-3 px-4 py-3 pr-10 transition ${active ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}
+                      className={`flex items-center gap-3 rounded-lg px-2 py-2 pr-9 transition ${active ? 'bg-selected' : 'hover:bg-hover'}`}
                     >
                       {entry.kind === 'DIRECT' ? (
                         <UserAvatar
@@ -233,7 +237,7 @@ export const MessagesPage: React.FC = () => {
                           size={40}
                         />
                       ) : (
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-celeste text-noche">
                           <Users size={18} />
                         </span>
                       )}
@@ -268,6 +272,9 @@ export const MessagesPage: React.FC = () => {
             </ul>
           )}
         </div>
+        <div className="hidden md:block">
+          <UserPanel />
+        </div>
       </aside>
 
       <div className={`min-w-0 flex-1 ${chatOpen ? 'flex' : 'hidden md:flex'} flex-col`}>
@@ -289,10 +296,19 @@ export const MessagesPage: React.FC = () => {
             </div>
           )
         ) : partnerId === null ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-slate-400">
-            <MessageCircle size={40} />
-            <p className="text-sm font-semibold text-slate-600">Elige una conversación</p>
-            <p className="max-w-xs text-xs">Los mensajes nuevos también te llegan a la campana de notificaciones.</p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+            <Lumi mood="happy" size={96} />
+            <p className="mt-2 text-lg font-bold text-ink">Elige una conversación</p>
+            <p className="max-w-xs text-sm text-soft">
+              Escríbele a un compañero o arma un chat grupal con el botón + de la izquierda.
+            </p>
+            <button
+              type="button"
+              onClick={() => setRoomModalOpen(true)}
+              className="mt-3 inline-flex h-10 items-center gap-2 rounded-full bg-indigo-600 px-5 text-sm font-bold text-white hover:bg-indigo-700"
+            >
+              <Users size={16} /> Crear chat grupal
+            </button>
           </div>
         ) : partnerError ? (
           <div className="p-6">
