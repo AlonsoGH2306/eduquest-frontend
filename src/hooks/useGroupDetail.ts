@@ -1,6 +1,14 @@
 import { useCallback, useState } from 'react';
 import { groupService } from '../services/groupService';
-import { DocumentRequest, GroupResponse, SessionReviewRequest, StudySessionRequest, StudySessionResponse } from '../types';
+import {
+  DocumentRequest,
+  GroupMember,
+  GroupResponse,
+  GroupUpdateRequest,
+  SessionReviewRequest,
+  StudySessionRequest,
+  StudySessionResponse,
+} from '../types';
 import { useFetch } from './useFetch';
 import { usePaginatedFetch } from './usePaginatedFetch';
 
@@ -27,7 +35,7 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
   const sessions = useFetch(fetchSessions, { enabled: isMember && activeTab === 'sessions' });
 
   const fetchMembers = useCallback((signal: AbortSignal) => groupService.getGroupMembers(groupId, signal), [groupId]);
-  const members = useFetch(fetchMembers, { enabled: isMember && activeTab === 'members' });
+  const members = useFetch(fetchMembers, { enabled: isMember && (activeTab === 'members' || activeTab === 'chat') });
 
   const { reload: reloadDocuments } = documents;
   const { reload: reloadSessions, setData: setSessions } = sessions;
@@ -92,6 +100,13 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
     [groupId, replaceSession]
   );
 
+  const checkIn = useCallback(
+    async (session: StudySessionResponse) => {
+      replaceSession(await groupService.checkIn(groupId, session.id));
+    },
+    [groupId, replaceSession]
+  );
+
   const reviewSession = useCallback(
     async (session: StudySessionResponse, payload: SessionReviewRequest) => {
       const review = await groupService.reviewSession(groupId, session.id, payload);
@@ -113,6 +128,46 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
       replaceSession(await groupService.updateRecording(groupId, session.id, recordingUrl));
     },
     [groupId, replaceSession]
+  );
+
+  const { setData: setMembers } = members;
+
+  const updateGroup = useCallback(
+    async (payload: GroupUpdateRequest) => {
+      const updated = await groupService.updateGroup(groupId, payload);
+      setJoinedGroup(updated);
+      return updated;
+    },
+    [groupId]
+  );
+
+  const removeMember = useCallback(
+    async (member: GroupMember) => {
+      await groupService.removeMember(groupId, member.id);
+      setMembers((previous) => (previous ?? []).filter((item) => item.id !== member.id));
+      if (group) setJoinedGroup({ ...group, memberCount: Math.max(group.memberCount - 1, 1) });
+    },
+    [groupId, group, setMembers]
+  );
+
+  const setModerator = useCallback(
+    async (member: GroupMember, moderator: boolean) => {
+      await groupService.setModerator(groupId, member.id, moderator);
+      setMembers((previous) =>
+        (previous ?? []).map((item) =>
+          item.id === member.id ? { ...item, groupRole: moderator ? 'MODERATOR' : 'MEMBER' } : item
+        )
+      );
+    },
+    [groupId, setMembers]
+  );
+
+  const setMuted = useCallback(
+    async (muted: boolean) => {
+      await groupService.setMuted(groupId, muted);
+      if (group) setJoinedGroup({ ...group, muted });
+    },
+    [groupId, group]
   );
 
   const sortedSessions = [...(sessions.data ?? [])].sort(
@@ -137,9 +192,14 @@ export function useGroupDetail(groupId: number, page: number, size: number, acti
     saveSession,
     deleteSession,
     toggleAttendance,
+    checkIn,
     reviewSession,
     updateRecording,
     reloadSessions,
     reloadMembers: members.reload,
+    updateGroup,
+    removeMember,
+    setModerator,
+    setMuted,
   };
 }

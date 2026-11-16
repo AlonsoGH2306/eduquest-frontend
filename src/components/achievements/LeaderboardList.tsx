@@ -1,9 +1,10 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { LeaderboardEntry } from '../../types';
 import { UserAvatar } from '../common/UserAvatar';
 import { AdvisorBadge } from '../common/AdvisorBadge';
 
-const MEDALS = ['bg-amber-400 text-white', 'bg-slate-300 text-slate-700', 'bg-orange-300 text-white'];
+const MEDALS = ['bg-amber-400 text-white', 'bg-slate-400 text-white', 'bg-orange-400 text-white'];
 
 interface LeaderboardListProps {
   entries: LeaderboardEntry[];
@@ -24,11 +25,13 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({ entries, curre
         >
           {entry.position}
         </span>
-        <UserAvatar username={entry.username} avatarUrl={entry.avatarUrl} size={32} />
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-slate-800">@{entry.username}</span>
+        <Link to={`/users/${entry.userId}`} className="group flex min-w-0 flex-1 items-center gap-3">
+          <UserAvatar username={entry.username} avatarUrl={entry.avatarUrl} size={32} />
+          <span className="truncate text-sm font-semibold text-slate-800 group-hover:text-indigo-600 group-hover:underline">
+            @{entry.username}
+          </span>
           {entry.advisor && <AdvisorBadge compact />}
-        </div>
+        </Link>
         <span className="text-sm font-bold text-indigo-700">{entry.points} pts</span>
       </li>
     ))}

@@ -18,6 +18,7 @@ import { TabButton } from '../components/common/TabButton';
 import { UnreadBadge } from '../components/common/UnreadBadge';
 import { GroupCard } from '../components/groups/GroupCard';
 import { MyGroupRow } from '../components/groups/MyGroupRow';
+import { usePinnedChats } from '../hooks/usePinnedChats';
 import { CreateGroupModal } from '../components/groups/CreateGroupModal';
 import { JoinPrivateGroupModal } from '../components/groups/JoinPrivateGroupModal';
 
@@ -33,6 +34,7 @@ export const GroupsPage: React.FC = () => {
   const debouncedSearch = useDebounce(searchInput.trim(), 400);
 
   const myGroups = useMyGroups();
+  const { isPinned, togglePin, sortPinnedFirst } = usePinnedChats();
   const { groups, totalElements, totalPages, loading, error, reload, createGroup, joinGroup } = useGroups(
     page,
     size,
@@ -100,8 +102,13 @@ export const GroupsPage: React.FC = () => {
     }
     return (
       <div className="space-y-3">
-        {myGroups.groups.map((group) => (
-          <MyGroupRow key={group.id} group={group} />
+        {sortPinnedFirst(myGroups.groups, 'GROUP', (group) => group.id).map((group) => (
+          <MyGroupRow
+            key={group.id}
+            group={group}
+            pinned={isPinned('GROUP', group.id)}
+            onTogglePin={() => void togglePin('GROUP', group.id)}
+          />
         ))}
       </div>
     );

@@ -14,7 +14,9 @@ const POINT_RULES = [
   { label: 'Agendar una asesoría', points: 8 },
   { label: 'Reseñar un material', points: 5 },
   { label: 'Calificar una asesoría', points: 4 },
-  { label: 'Confirmar asistencia', points: 3 },
+  { label: 'Asistir a una asesoría («Unirme ahora»)', points: 3 },
+  { label: 'Confirmar asistencia', points: 1 },
+  { label: 'Confirmar y no asistir', points: -3 },
 ];
 
 export const AchievementsPage: React.FC = () => {
@@ -68,7 +70,9 @@ export const AchievementsPage: React.FC = () => {
                 {POINT_RULES.map((rule) => (
                   <li key={rule.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
                     <span className="text-slate-700">{rule.label}</span>
-                    <span className="font-bold text-indigo-700">+{rule.points}</span>
+                    <span className={`font-bold ${rule.points < 0 ? 'text-red-600' : 'text-indigo-700'}`}>
+                      {rule.points > 0 ? `+${rule.points}` : rule.points}
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,21 @@
 import { axiosInstance } from './axiosInstance';
-import { AuthResponse, LoginRequest, RegisterRequest, ResetPasswordRequest } from '../types';
+import { AuthResponse, BanAppeal, LoginRequest, RegisterRequest, ResetPasswordRequest, UserResponse } from '../types';
 
 export const authService = {
+  async submitAppeal(username: string, password: string, message: string): Promise<BanAppeal> {
+    const { data } = await axiosInstance.post<BanAppeal>('/auth/appeals', { username, password, message });
+    return data;
+  },
+
+  async verifyEmail(code: string): Promise<UserResponse> {
+    const { data } = await axiosInstance.post<UserResponse>('/users/me/verify-email', { code });
+    return data;
+  },
+
+  async resendVerification(): Promise<void> {
+    await axiosInstance.post('/users/me/verify-email/resend');
+  },
+
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const { data } = await axiosInstance.post<AuthResponse>('/auth/login', credentials);
     return data;

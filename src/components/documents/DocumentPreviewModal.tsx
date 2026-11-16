@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, ExternalLink, EyeOff, X } from 'lucide-react';
 import { DocumentResponse } from '../../types';
-import { buildDocumentPreview, FileKind } from '../../utils/documentPreview';
+import { buildDocumentPreview, FileKind, isUploadedFile } from '../../utils/documentPreview';
 import { Spinner } from '../common/Spinner';
 
 const BADGES: Record<FileKind, { label: string; className: string }> = {
@@ -19,8 +19,45 @@ interface DocumentPreviewModalProps {
   onClose: () => void;
 }
 
+const embedsPdf = () => typeof navigator === 'undefined' || navigator.pdfViewerEnabled !== false;
+
+const useLocalCopy = (url: string | null) => {
+  const [state, setState] = useState<{ src: string | null; failed: boolean }>({ src: null, failed: false });
+
+  useEffect(() => {
+    setState({ src: null, failed: false });
+    if (!url) return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        const type = blob.type && blob.type !== 'application/octet-stream' ? blob.type : 'application/pdf';
+        objectUrl = URL.createObjectURL(new Blob([blob], { type }));
+        setState({ src: objectUrl, failed: false });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ src: null, failed: true });
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  return state;
+};
+
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ document: doc, onClose }) => {
   const [loaded, setLoaded] = useState(false);
+  const preview = doc ? buildDocumentPreview(doc.fileUrl, doc.title) : null;
+  const servedLocally = Boolean(doc && preview?.kind === 'iframe' && isUploadedFile(doc.fileUrl) && preview.src === doc.fileUrl);
+  const canEmbed = !servedLocally || preview?.fileKind !== 'pdf' || embedsPdf();
+  const localCopy = useLocalCopy(servedLocally && canEmbed && doc ? doc.fileUrl : null);
 
   useEffect(() => {
     if (!doc) return;
@@ -37,8 +74,10 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ docu
     };
   }, [doc, onClose]);
 
-  if (!doc) return null;
-  const preview = buildDocumentPreview(doc.fileUrl, doc.title);
+  if (!doc || !preview) return null;
+  const localSrc = localCopy.src && preview.fileKind === 'pdf' ? `${localCopy.src}#toolbar=0&navpanes=0&zoom=100` : localCopy.src;
+  const frameSrc = servedLocally ? localSrc : preview.src;
+  const unavailable = !canEmbed || localCopy.failed;
   const badge = BADGES[preview.fileKind];
   const subtitle = [doc.authorUsername && `@${doc.authorUsername}`, doc.course, doc.university].filter(Boolean).join(' · ');
 
@@ -89,22 +128,32 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ docu
       </header>
 
       <div className="relative flex-1 overflow-hidden">
-        {preview.kind === 'iframe' ? (
+        {preview.kind === 'iframe' && unavailable ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <EyeOff size={36} className="text-white/50" />
+            <p className="text-base font-semibold">
+              {canEmbed ? 'No se pudo cargar el archivo' : 'Tu navegador no muestra PDF dentro de la página'}
+            </p>
+            <p className="max-w-md text-sm text-white/60">Usa “Abrir” para verlo en una pestaña nueva o descárgalo.</p>
+          </div>
+        ) : preview.kind === 'iframe' ? (
           <>
-            {!loaded && (
+            {(!loaded || !frameSrc) && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Spinner size={32} label="Cargando el material..." />
               </div>
             )}
-            <iframe
-              src={preview.src}
-              title={`Vista previa de ${doc.title}`}
-              onLoad={() => setLoaded(true)}
-              className={`mx-auto h-full w-full max-w-6xl border-0 transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`}
-              allow="autoplay; fullscreen"
-              allowFullScreen
-              referrerPolicy="no-referrer"
-            />
+            {frameSrc && (
+              <iframe
+                src={frameSrc}
+                title={`Vista previa de ${doc.title}`}
+                onLoad={() => setLoaded(true)}
+                className={`h-full w-full border-0 transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                allow="autoplay; fullscreen"
+                allowFullScreen
+                referrerPolicy="no-referrer"
+              />
+            )}
           </>
         ) : preview.kind === 'image' ? (
           <div className="flex h-full items-center justify-center overflow-auto p-6">

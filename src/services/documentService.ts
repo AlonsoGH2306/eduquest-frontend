@@ -6,6 +6,7 @@ import {
   ReviewRequest,
   ReviewResponse,
   ReviewUpdateRequest,
+  UploadedFile,
 } from '../types';
 
 export interface DocumentQueryParams {
@@ -44,6 +45,32 @@ export const documentService = {
 
   async uploadPublicDocument(payload: DocumentRequest): Promise<DocumentResponse> {
     const { data } = await axiosInstance.post<DocumentResponse>('/documents', payload);
+    return data;
+  },
+
+  async getFeatured(signal?: AbortSignal): Promise<DocumentResponse[]> {
+    const { data } = await axiosInstance.get<DocumentResponse[]>('/documents/featured', { signal });
+    return data;
+  },
+
+  async updateDocument(id: number, payload: DocumentRequest): Promise<DocumentResponse> {
+    const { data } = await axiosInstance.put<DocumentResponse>(`/documents/${id}`, payload);
+    return data;
+  },
+
+  async deleteDocument(id: number): Promise<void> {
+    await axiosInstance.delete(`/documents/${id}`);
+  },
+
+  async uploadFile(file: File, onProgress?: (percent: number) => void): Promise<UploadedFile> {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await axiosInstance.post<UploadedFile>('/files', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100));
+      },
+    });
     return data;
   },
 

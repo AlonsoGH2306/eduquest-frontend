@@ -20,9 +20,11 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onJoin, joiningId }
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <Users size={20} />
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
-            <User size={11} /> Creador: @{group.creatorUsername}
-          </span>
+          {group.creatorUsername && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+              <User size={11} /> Creador: @{group.creatorUsername}
+            </span>
+          )}
         </div>
 
         <h3 className="text-base font-bold text-slate-900">{group.name}</h3>

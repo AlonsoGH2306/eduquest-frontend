@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Sparkles, BookOpen, Clock, Plus, X } from 'lucide-react';
+import { Sparkles, BookOpen, Clock, Plus, Trash2, X } from 'lucide-react';
 import { useStudyPlans } from '../hooks/useStudyPlans';
 import { PlanContent } from '../components/plans/PlanContent';
 import { PlanProgress } from '../components/plans/PlanProgress';
@@ -12,6 +12,7 @@ import { CourseInput, StudyPlanResponse } from '../types';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { Spinner } from '../components/common/Spinner';
 import { EmptyState } from '../components/common/EmptyState';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 const MAX_COURSES = 8;
 const emptyCourse: CourseInput = { name: '', difficulty: 'Media' };
@@ -23,7 +24,25 @@ interface PlannerForm {
 const difficultyLabel = (difficulty: string) => (difficulty === 'Mixta' ? 'Ciclo completo' : `Dificultad ${difficulty}`);
 
 export const StudyPlannerPage: React.FC = () => {
-  const { plans, loading: loadingHistory, error, reload, generating, generatePlan, toggleStep } = useStudyPlans();
+  const { plans, loading: loadingHistory, error, reload, generating, generatePlan, toggleStep, deletePlan } =
+    useStudyPlans();
+  const [planToDelete, setPlanToDelete] = useState<StudyPlanResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!planToDelete) return;
+    setDeleting(true);
+    try {
+      await deletePlan(planToDelete.id);
+      toast.success('Plan eliminado');
+      if (selectedId === planToDelete.id) setSelectedId(null);
+      setPlanToDelete(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selectedPlan: StudyPlanResponse | null = plans.find((plan) => plan.id === selectedId) ?? plans[0] ?? null;
 
@@ -196,11 +215,20 @@ export const StudyPlannerPage: React.FC = () => {
           ) : selectedPlan ? (
             <div>
               <div className="mb-4 space-y-3 border-b border-slate-100 pb-4">
-                <div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-                    <BookOpen size={12} /> {difficultyLabel(selectedPlan.difficulty)}
-                  </span>
-                  <h2 className="mt-1 text-xl font-bold text-slate-900">{selectedPlan.courseName}</h2>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                      <BookOpen size={12} /> {difficultyLabel(selectedPlan.difficulty)}
+                    </span>
+                    <h2 className="mt-1 text-xl font-bold text-slate-900">{selectedPlan.courseName}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPlanToDelete(selectedPlan)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 size={13} /> Eliminar
+                  </button>
                 </div>
                 <PlanProgress completed={selectedPlan.completedSteps.length} total={selectedPlan.totalSteps} />
                 {selectedPlan.totalSteps > 0 && (
@@ -227,6 +255,24 @@ export const StudyPlannerPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={planToDelete !== null}
+        title="Eliminar plan de estudio"
+        message={
+          <>
+            Se borrará el plan de «<span className="font-semibold text-slate-900">{planToDelete?.courseName}</span>» y
+            su avance. Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Eliminar"
+        loadingLabel="Eliminando..."
+        destructive
+        loading={deleting}
+        icon={<Trash2 size={14} />}
+        onConfirm={confirmDelete}
+        onClose={() => setPlanToDelete(null)}
+      />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Camera, GraduationCap, Moon, Save, Sun, Trash2 } from 'lucide-react';
 import { useProfile } from '../hooks/useProfile';
@@ -11,6 +12,7 @@ import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { ChangePasswordForm } from '../components/profile/ChangePasswordForm';
+import { FollowingList } from '../components/profile/FollowingList';
 
 interface UsernameForm {
   username: string;
@@ -98,6 +100,9 @@ export const ProfilePage: React.FC = () => {
         <div className="flex-1 text-center sm:text-left">
           <p className="text-lg font-bold text-slate-900">@{user.username}</p>
           <p className="text-sm text-slate-500">{user.email}</p>
+          <Link to={`/users/${user.id}`} className="mt-1 inline-block text-xs font-semibold text-indigo-600 hover:underline">
+            Ver mi perfil público
+          </Link>
           <div className="mt-2 flex flex-wrap justify-center gap-1.5 sm:justify-start">
             <span className="inline-block rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
               {roleName}
@@ -187,6 +192,8 @@ export const ProfilePage: React.FC = () => {
           {savingAdvisor ? 'Guardando...' : advisor ? 'Dejar de ser asesor' : 'Ser asesor'}
         </button>
       </section>
+
+      <FollowingList />
 
       <ChangePasswordForm />
 

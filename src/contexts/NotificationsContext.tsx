@@ -1,6 +1,8 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { notificationService } from '../services/notificationService';
 import { messageService } from '../services/messageService';
+import { useRealtimeEvents } from '../hooks/useRealtime';
+import { useAuth } from '../hooks/useAuth';
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -32,6 +34,17 @@ export const NotificationsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [reloadKey]);
 
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const { user } = useAuth();
+  const pending = useRef<number | null>(null);
+
+  useRealtimeEvents((event) => {
+    if (event.type !== 'direct.message' || event.action !== 'created' || event.recipientId !== user?.id) return;
+    if (pending.current !== null) window.clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => {
+      pending.current = null;
+      refresh();
+    }, 1500);
+  }, Boolean(user));
 
   useEffect(() => {
     const interval = window.setInterval(() => {

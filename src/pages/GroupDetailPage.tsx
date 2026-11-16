@@ -1,8 +1,32 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Calendar, FileText, Lock, MessagesSquare, Plus, Send, Trash2, UserPlus, Users } from 'lucide-react';
-import { DocumentRequest, DocumentResponse, GroupResponse, StudySessionRequest, StudySessionResponse } from '../types';
+import {
+  Bell,
+  BellOff,
+  Calendar,
+  FileText,
+  Headphones,
+  Lock,
+  LogOut,
+  MessagesSquare,
+  Pencil,
+  Plus,
+  Send,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
+} from 'lucide-react';
+import {
+  DocumentRequest,
+  DocumentResponse,
+  GroupMember,
+  GroupResponse,
+  StudySessionRequest,
+  StudySessionResponse,
+} from '../types';
+import { groupService } from '../services/groupService';
 import { useAuth } from '../hooks/useAuth';
 import { GroupTab, useGroupDetail } from '../hooks/useGroupDetail';
 import { usePageParams } from '../hooks/usePageParams';
@@ -22,9 +46,14 @@ import { ScheduleSessionModal } from '../components/groups/ScheduleSessionModal'
 import { JoinPrivateGroupModal } from '../components/groups/JoinPrivateGroupModal';
 import { SessionCard } from '../components/groups/SessionCard';
 import { MemberList } from '../components/groups/MemberList';
+import { useOnlineMembers } from '../hooks/useOnlineMembers';
+import { useGroupLive } from '../hooks/useGroupLive';
+import { StudyRoomCard } from '../components/groups/StudyRoomCard';
+import { UserAvatar } from '../components/common/UserAvatar';
 import { VisibilityBadge } from '../components/groups/VisibilityBadge';
 import { GroupChat } from '../components/groups/GroupChat';
 import { InviteModal } from '../components/groups/InviteModal';
+import { EditGroupModal } from '../components/groups/EditGroupModal';
 import { SessionReviewsModal } from '../components/groups/SessionReviewsModal';
 import { RecordingModal } from '../components/groups/RecordingModal';
 import { RecordingPlayerModal } from '../components/groups/RecordingPlayerModal';
@@ -37,7 +66,7 @@ export const GroupDetailPage: React.FC = () => {
   const numericGroupId = Number(groupId);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const groupFromState = (location.state as { group?: GroupResponse } | null)?.group;
 
   const { page, size, setPage, setSize, searchParams, updateParams } = usePageParams();
@@ -62,10 +91,15 @@ export const GroupDetailPage: React.FC = () => {
     saveSession,
     deleteSession,
     toggleAttendance,
+    checkIn,
     reviewSession,
     updateRecording,
     reloadSessions,
     reloadMembers,
+    updateGroup,
+    removeMember,
+    setModerator,
+    setMuted,
   } = useGroupDetail(numericGroupId, page, size, activeTab, groupFromState);
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -82,6 +116,10 @@ export const GroupDetailPage: React.FC = () => {
   const [watchingSession, setWatchingSession] = useState<StudySessionResponse | null>(null);
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [groupAction, setGroupAction] = useState<'delete' | 'leave' | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const { groups: myGroups, markSeen, markChatSeen, refresh: refreshMyGroups } = useMyGroups();
   const unreadMessages = myGroups.find((mine) => mine.id === numericGroupId)?.unreadMessages ?? 0;
@@ -96,6 +134,98 @@ export const GroupDetailPage: React.FC = () => {
 
   const groupName = group?.name ?? `Grupo #${numericGroupId}`;
   const isOwner = Boolean(group && user && group.creatorUsername === user.username);
+  const canManageGroup = Boolean(group?.canManage) || isOwner;
+  const channelParam = Number(searchParams.get('channel'));
+  const activeChannelId = Number.isInteger(channelParam) && channelParam > 0 ? channelParam : null;
+  const onlineMembers = useOnlineMembers(numericGroupId, isMember && activeTab === 'members');
+  const messageParam = Number(searchParams.get('message'));
+  const focusMessageId = Number.isInteger(messageParam) && messageParam > 0 ? messageParam : null;
+  const [joiningVoice, setJoiningVoice] = useState(false);
+  const live = useGroupLive(numericGroupId, isMember);
+  const inVoice = live.voice.participants.some((participant) => participant.id === user?.id);
+
+  const clearMessageParam = useCallback(() => updateParams({ message: null }), [updateParams]);
+
+  const toggleVoice = async () => {
+    if (inVoice) {
+      try {
+        await live.setInVoice(false);
+      } catch (error) {
+        toast.error(extractErrorMessage(error));
+      }
+      return;
+    }
+    const popup = window.open('', '_blank');
+    setJoiningVoice(true);
+    try {
+      const { url } = await live.setInVoice(true);
+      if (popup && url) {
+        popup.opener = null;
+        popup.location.href = url;
+      } else if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      popup?.close();
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setJoiningVoice(false);
+    }
+  };
+
+  const toggleMuted = async () => {
+    const muted = !group?.muted;
+    try {
+      await setMuted(muted);
+      toast.success(muted ? 'Grupo silenciado: no recibirás avisos de su actividad' : 'Volverás a recibir avisos del grupo');
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    }
+  };
+
+  const toggleModerator = async (member: GroupMember) => {
+    const promote = member.groupRole !== 'MODERATOR';
+    try {
+      await setModerator(member, promote);
+      toast.success(promote ? `@${member.username} ahora es moderador` : `@${member.username} ya no es moderador`);
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    }
+  };
+
+  const confirmGroupAction = async () => {
+    if (!groupAction) return;
+    setActionBusy(true);
+    try {
+      if (groupAction === 'delete') {
+        await groupService.deleteGroup(numericGroupId);
+        toast.success('Grupo eliminado');
+      } else {
+        await groupService.leaveGroup(numericGroupId);
+        toast.success('Saliste del grupo');
+      }
+      refreshMyGroups();
+      navigate('/groups', { replace: true });
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+      setActionBusy(false);
+      setGroupAction(null);
+    }
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    setActionBusy(true);
+    try {
+      await removeMember(memberToRemove);
+      toast.success(`@${memberToRemove.username} ya no es parte del grupo`);
+      setMemberToRemove(null);
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   const changeTab = (tab: GroupTab) => updateParams({ tab: tab === 'docs' ? null : tab });
 
@@ -160,7 +290,23 @@ export const GroupDetailPage: React.FC = () => {
     setAttendanceBusyId(session.id);
     try {
       await toggleAttendance(session);
-      toast.success(session.attending ? 'Cancelaste tu asistencia' : '¡Te esperamos en la sesión!');
+      toast.success(
+        session.attending
+          ? 'Cancelaste tu asistencia'
+          : '¡Te esperamos! Entra con «Unirme ahora» cuando empiece para no perder puntos'
+      );
+    } catch (error) {
+      toast.error(extractErrorMessage(error));
+    } finally {
+      setAttendanceBusyId(null);
+    }
+  };
+
+  const handleCheckIn = async (session: StudySessionResponse) => {
+    setAttendanceBusyId(session.id);
+    try {
+      await checkIn(session);
+      toast.success('¡Asistencia registrada! Ganaste 3 puntos');
     } catch (error) {
       toast.error(extractErrorMessage(error));
     } finally {
@@ -196,7 +342,12 @@ export const GroupDetailPage: React.FC = () => {
       <>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {documents.items.map((doc) => (
-            <DocumentCard key={doc.id} document={doc} onOpenReviews={setSelectedDocForReview} />
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              onOpenReviews={setSelectedDocForReview}
+              onChanged={documents.reload}
+            />
           ))}
         </div>
         <PaginationBar
@@ -234,6 +385,7 @@ export const GroupDetailPage: React.FC = () => {
             onEdit={openSessionModal}
             onDelete={setSessionToDelete}
             onToggleAttendance={handleToggleAttendance}
+            onCheckIn={handleCheckIn}
             onOpenReviews={setReviewingSession}
             onEditRecording={setRecordingSession}
             onWatchRecording={setWatchingSession}
@@ -251,6 +403,10 @@ export const GroupDetailPage: React.FC = () => {
         members={members}
         currentUserId={user?.id}
         onMessage={(member) => navigate(`/messages/${member.id}`)}
+        onlineIds={onlineMembers}
+        onRemove={canManageGroup ? setMemberToRemove : undefined}
+        canRemove={(member) => isOwner || member.groupRole === 'MEMBER'}
+        onToggleModerator={isOwner ? (member) => void toggleModerator(member) : undefined}
         onReport={(member) => setReportTarget({ type: 'USER', id: member.id, label: member.username })}
       />
     );
@@ -272,7 +428,9 @@ export const GroupDetailPage: React.FC = () => {
               <span className="text-slate-500">
                 Código <span className="font-mono font-semibold tracking-wider text-slate-800">{group.code}</span>
               </span>
-              <span className="text-slate-500">· Creado por @{group.creatorUsername}</span>
+              {group.creatorUsername && (
+                <span className="text-slate-500">· Creado por @{group.creatorUsername}</span>
+              )}
             </div>
           )}
         </div>
@@ -288,18 +446,92 @@ export const GroupDetailPage: React.FC = () => {
             </button>
             <button
               type="button"
+              onClick={() => void toggleVoice()}
+              disabled={joiningVoice}
+              title={
+                live.voice.participants.length > 0
+                  ? `En la sala: ${live.voice.participants.map((participant) => `@${participant.username}`).join(', ')}`
+                  : 'Nadie está en la sala de voz'
+              }
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold disabled:opacity-50 ${
+                inVoice
+                  ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              }`}
+            >
+              <Headphones size={15} /> {joiningVoice ? 'Abriendo...' : inVoice ? 'Salir de la sala' : 'Sala de voz'}
+              {live.voice.participants.length > 0 && (
+                <span className="flex -space-x-1.5">
+                  {live.voice.participants.slice(0, 3).map((participant) => (
+                    <span key={participant.id} className="rounded-full ring-2 ring-white">
+                      <UserAvatar username={participant.username} avatarUrl={participant.avatarUrl} size={18} />
+                    </span>
+                  ))}
+                  {live.voice.participants.length > 3 && (
+                    <span className="pl-2 text-[10px]">+{live.voice.participants.length - 3}</span>
+                  )}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void toggleMuted()}
+              aria-label={group?.muted ? 'Activar avisos del grupo' : 'Silenciar el grupo'}
+              title={group?.muted ? 'Activar avisos del grupo' : 'Silenciar el grupo'}
+              aria-pressed={Boolean(group?.muted)}
+              className={`inline-flex items-center rounded-xl border px-2.5 py-2 ${
+                group?.muted
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-700'
+              }`}
+            >
+              {group?.muted ? <BellOff size={15} /> : <Bell size={15} />}
+            </button>
+            <button
+              type="button"
               onClick={() => openSessionModal(null)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
             >
               <Calendar size={15} /> Agendar sesión
             </button>
             {isOwner && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setInviteOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
+                >
+                  <Send size={15} /> Invitar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  aria-label="Editar grupo"
+                  title="Editar grupo"
+                  className="inline-flex items-center rounded-xl border border-slate-200 px-2.5 py-2 text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+                >
+                  <Pencil size={15} />
+                </button>
+              </>
+            )}
+            {(isOwner || isAdmin) && (
               <button
                 type="button"
-                onClick={() => setInviteOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
+                onClick={() => setGroupAction('delete')}
+                aria-label="Eliminar grupo"
+                title="Eliminar grupo"
+                className="inline-flex items-center rounded-xl border border-slate-200 px-2.5 py-2 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               >
-                <Send size={15} /> Invitar
+                <Trash2 size={15} />
+              </button>
+            )}
+            {!isOwner && (
+              <button
+                type="button"
+                onClick={() => setGroupAction('leave')}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                <LogOut size={15} /> Salir
               </button>
             )}
           </div>
@@ -328,6 +560,13 @@ export const GroupDetailPage: React.FC = () => {
         </div>
       ) : (
         <>
+          <StudyRoomCard
+            room={live.studyRoom}
+            currentUserId={user?.id}
+            canManage={canManageGroup}
+            onStart={live.startStudyRoom}
+            onAction={live.studyRoomAction}
+          />
           <div role="tablist" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
             <TabButton
               active={activeTab === 'docs'}
@@ -357,7 +596,20 @@ export const GroupDetailPage: React.FC = () => {
 
           {activeTab === 'docs' && renderDocuments()}
           {activeTab === 'sessions' && renderSessions()}
-          {activeTab === 'chat' && <GroupChat groupId={numericGroupId} onSeen={handleChatSeen} />}
+          {activeTab === 'chat' && (
+            <GroupChat
+              groupId={numericGroupId}
+              canManage={canManageGroup}
+              members={members}
+              channelId={activeChannelId}
+              messageId={focusMessageId}
+              onChannelChange={(channelId, messageId) =>
+                updateParams({ channel: String(channelId), message: messageId ? String(messageId) : null })
+              }
+              onMessageShown={clearMessageParam}
+              onSeen={handleChatSeen}
+            />
+          )}
           {activeTab === 'members' && renderMembers()}
         </>
       )}
@@ -392,6 +644,52 @@ export const GroupDetailPage: React.FC = () => {
       <ReportModal target={reportTarget} onClose={() => setReportTarget(null)} />
 
       <InviteModal group={inviteOpen ? group : null} onClose={() => setInviteOpen(false)} />
+
+      <EditGroupModal group={editOpen ? group : null} onClose={() => setEditOpen(false)} onSave={updateGroup} />
+
+      <ConfirmModal
+        isOpen={groupAction !== null}
+        title={groupAction === 'delete' ? 'Eliminar grupo' : 'Salir del grupo'}
+        message={
+          groupAction === 'delete' ? (
+            <>
+              Se borrarán «<span className="font-semibold text-slate-900">{groupName}</span>», su material, sus sesiones
+              y el chat para todos los miembros. Esta acción no se puede deshacer.
+            </>
+          ) : (
+            <>
+              Dejarás de ver el material, las sesiones y el chat de «
+              <span className="font-semibold text-slate-900">{groupName}</span>».
+              {group?.visibility === 'PRIVATE' && ' Para volver necesitarás la contraseña o una invitación.'}
+            </>
+          )
+        }
+        confirmLabel={groupAction === 'delete' ? 'Eliminar grupo' : 'Salir'}
+        loadingLabel={groupAction === 'delete' ? 'Eliminando...' : 'Saliendo...'}
+        destructive
+        loading={actionBusy}
+        icon={groupAction === 'delete' ? <Trash2 size={14} /> : <LogOut size={14} />}
+        onConfirm={confirmGroupAction}
+        onClose={() => setGroupAction(null)}
+      />
+
+      <ConfirmModal
+        isOpen={memberToRemove !== null}
+        title="Quitar del grupo"
+        message={
+          <>
+            <span className="font-semibold text-slate-900">@{memberToRemove?.username}</span> dejará de tener acceso al
+            grupo. Podrá volver a unirse con el código o una invitación.
+          </>
+        }
+        confirmLabel="Quitar"
+        loadingLabel="Quitando..."
+        destructive
+        loading={actionBusy}
+        icon={<UserMinus size={14} />}
+        onConfirm={confirmRemoveMember}
+        onClose={() => setMemberToRemove(null)}
+      />
 
       <ConfirmModal
         isOpen={sessionToDelete !== null}

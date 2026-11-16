@@ -22,7 +22,10 @@ export function useAdminReports(status: ReportStatus, page: number, size: number
   );
 
   const deleteDocument = useCallback((documentId: number) => adminService.deleteDocument(documentId), []);
-  const banUser = useCallback((userId: number, reason: string) => adminService.banUser(userId, reason), []);
+  const banUser = useCallback(
+    (userId: number, reason: string, days: number | null) => adminService.banUser(userId, reason, days),
+    []
+  );
 
   return { ...list, reports: list.items, closeReport, deleteDocument, banUser };
 }

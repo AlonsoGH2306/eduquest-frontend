@@ -15,6 +15,10 @@ export const studyPlanService = {
     return data;
   },
 
+  async deletePlan(planId: number): Promise<void> {
+    await axiosInstance.delete(`/study-plans/${planId}`);
+  },
+
   async updateProgress(planId: number, completedSteps: number[]): Promise<StudyPlanResponse> {
     const { data } = await axiosInstance.put<StudyPlanResponse>(`/study-plans/${planId}/progress`, {
       completedSteps,

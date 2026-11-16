@@ -10,14 +10,16 @@ export interface DashboardStats {
   groups: number;
   plans: number;
   recentDocuments: DocumentResponse[];
+  featuredDocuments: DocumentResponse[];
 }
 
 export function useDashboardStats() {
   const fetchStats = useCallback(async (signal: AbortSignal): Promise<DashboardStats> => {
-    const [documents, groups, plans] = await Promise.allSettled([
+    const [documents, groups, plans, featured] = await Promise.allSettled([
       documentService.getPublicDocuments({ page: 0, size: 4, sort: 'recent' }, signal),
       groupService.getAllGroups(0, 1, signal),
       studyPlanService.getMyPlans(signal),
+      documentService.getFeatured(signal),
     ]);
     if (documents.status === 'rejected') throw documents.reason;
     return {
@@ -25,6 +27,7 @@ export function useDashboardStats() {
       recentDocuments: documents.value.content,
       groups: groups.status === 'fulfilled' ? groups.value.totalElements : 0,
       plans: plans.status === 'fulfilled' ? plans.value.length : 0,
+      featuredDocuments: featured.status === 'fulfilled' ? featured.value : [],
     };
   }, []);
 

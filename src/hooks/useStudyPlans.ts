@@ -52,5 +52,13 @@ export function useStudyPlans() {
     [replacePlan]
   );
 
-  return { plans: data ?? [], loading, error, reload, generating, generatePlan, toggleStep };
+  const deletePlan = useCallback(
+    async (planId: number) => {
+      await studyPlanService.deletePlan(planId);
+      setData((previous) => (previous ?? []).filter((plan) => plan.id !== planId));
+    },
+    [setData]
+  );
+
+  return { plans: data ?? [], loading, error, reload, generating, generatePlan, toggleStep, deletePlan };
 }

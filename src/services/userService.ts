@@ -1,5 +1,5 @@
 import { axiosInstance } from './axiosInstance';
-import { AuthResponse, UserResponse } from '../types';
+import { AuthResponse, DocumentResponse, PageResponse, PublicProfile, UserResponse, UserSummary } from '../types';
 
 export const userService = {
   async getMe(signal?: AbortSignal): Promise<UserResponse> {
@@ -28,5 +28,31 @@ export const userService = {
 
   async deleteAvatar(): Promise<void> {
     await axiosInstance.delete('/users/me/avatar');
+  },
+
+  async getProfile(userId: number, signal?: AbortSignal): Promise<PublicProfile> {
+    const { data } = await axiosInstance.get<PublicProfile>(`/users/${userId}/profile`, { signal });
+    return data;
+  },
+
+  async getDocuments(userId: number, page: number, size: number, signal?: AbortSignal): Promise<PageResponse<DocumentResponse>> {
+    const { data } = await axiosInstance.get<PageResponse<DocumentResponse>>(`/users/${userId}/documents`, {
+      params: { page, size },
+      signal,
+    });
+    return data;
+  },
+
+  async follow(userId: number): Promise<void> {
+    await axiosInstance.post(`/users/${userId}/follow`);
+  },
+
+  async unfollow(userId: number): Promise<void> {
+    await axiosInstance.delete(`/users/${userId}/follow`);
+  },
+
+  async getFollowing(signal?: AbortSignal): Promise<UserSummary[]> {
+    const { data } = await axiosInstance.get<UserSummary[]>('/users/me/following', { signal });
+    return data;
   },
 };

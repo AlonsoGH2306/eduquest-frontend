@@ -255,6 +255,7 @@ export const ExploreDocumentsPage: React.FC = () => {
                 onOpenReviews={(d) => setSelectedDocForReview(d)}
                 onTagClick={handleTagFilter}
                 onSavedChange={handleSavedChange}
+                onChanged={current.reload}
               />
             ))}
           </div>

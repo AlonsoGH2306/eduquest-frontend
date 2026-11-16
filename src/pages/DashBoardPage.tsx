@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, FileText, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -9,12 +9,15 @@ import { ErrorState } from '../components/common/ErrorState';
 import { EmptyState } from '../components/common/EmptyState';
 import { LeaderboardList } from '../components/achievements/LeaderboardList';
 import { useLeaderboard } from '../hooks/useAchievements';
+import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
+import { DocumentResponse } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const { user, canManageUsers } = useAuth();
   const { stats, loading, error, reload } = useDashboardStats();
   const leaderboard = useLeaderboard('week');
   const value = (count?: number) => (loading ? null : (count ?? 0));
+  const [previewing, setPreviewing] = useState<DocumentResponse | null>(null);
 
   return (
     <div className="space-y-8">
@@ -69,6 +72,36 @@ export const DashboardPage: React.FC = () => {
             />
           </div>
 
+          {stats && stats.featuredDocuments.length > 0 && (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 shadow-xs">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <Sparkles size={18} className="text-amber-500" /> Destacados por la comunidad
+              </h2>
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {stats.featuredDocuments.map((doc) => (
+                  <li key={doc.id}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewing(doc)}
+                      className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-amber-300 hover:shadow-md"
+                    >
+                      <span className="rounded-lg bg-amber-50 p-2 text-amber-600">
+                        <FileText size={16} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-800">{doc.title}</span>
+                        <span className="block truncate text-xs text-slate-500">
+                          @{doc.authorUsername}
+                          {doc.course ? ` · ${doc.course}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
@@ -96,14 +129,13 @@ export const DashboardPage: React.FC = () => {
                           @{doc.authorUsername} · {formatDateTime(doc.uploadedAt)}
                         </p>
                       </div>
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => setPreviewing(doc)}
                         className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
                       >
                         Abrir
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -144,9 +176,10 @@ export const DashboardPage: React.FC = () => {
 
       {canManageUsers && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 text-xs text-amber-900">
-          Tienes acceso a la administración de usuarios. Encuéntrala en la pestaña <strong>Usuarios</strong> de la barra superior.
+          Tienes acceso a la administración de usuarios. Encuéntrala en la pestaña <strong>Admin</strong> de la barra superior.
         </div>
       )}
+      <DocumentPreviewModal document={previewing} onClose={() => setPreviewing(null)} />
     </div>
   );
 };

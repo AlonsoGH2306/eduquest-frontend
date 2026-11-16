@@ -72,7 +72,9 @@ export const InvitePage: React.FC = () => {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
           <MailOpen size={28} />
         </div>
-        <p className="text-sm text-slate-500">@{group.creatorUsername} te invita a</p>
+        <p className="text-sm text-slate-500">
+          {group.creatorUsername ? `@${group.creatorUsername} te invita a` : 'Te invitaron a'}
+        </p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">{group.name}</h1>
         {group.description && <p className="mt-2 text-sm text-slate-600">{group.description}</p>}
         <div className="mt-4 flex items-center justify-center gap-3 text-xs text-slate-500">

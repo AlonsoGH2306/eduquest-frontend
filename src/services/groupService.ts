@@ -3,11 +3,21 @@ import {
   DocumentRequest,
   DocumentResponse,
   GroupInvite,
+  ChannelSettings,
+  ChannelSummary,
+  GroupChannel,
   GroupMember,
   GroupMessage,
   GroupRequest,
   GroupResponse,
+  GroupThread,
+  GroupUpdateRequest,
   PageResponse,
+  PollRequest,
+  SavedMessage,
+  SendMessagePayload,
+  StudyRoom,
+  VoiceRoom,
   SessionReviewRequest,
   SessionReviewResponse,
   StudySessionRequest,
@@ -141,6 +151,16 @@ export const groupService = {
     return data;
   },
 
+  async getMySessions(from: string, to: string, signal?: AbortSignal): Promise<StudySessionResponse[]> {
+    const { data } = await axiosInstance.get<StudySessionResponse[]>('/sessions/mine', { params: { from, to }, signal });
+    return data;
+  },
+
+  async checkIn(groupId: number, sessionId: number): Promise<StudySessionResponse> {
+    const { data } = await axiosInstance.post<StudySessionResponse>(`/groups/${groupId}/sessions/${sessionId}/check-in`);
+    return data;
+  },
+
   async setAttendance(groupId: number, sessionId: number, attending: boolean): Promise<StudySessionResponse> {
     const url = `/groups/${groupId}/sessions/${sessionId}/attendance`;
     const { data } = attending
@@ -183,7 +203,7 @@ export const groupService = {
 
   async getMessages(
     groupId: number,
-    cursor: { after?: number; before?: number } = {},
+    cursor: { channelId?: number; after?: number; before?: number; around?: number } = {},
     signal?: AbortSignal
   ): Promise<GroupMessage[]> {
     const { data } = await axiosInstance.get<GroupMessage[]>(`/groups/${groupId}/messages`, {
@@ -193,12 +213,183 @@ export const groupService = {
     return data;
   },
 
+  async updateGroup(groupId: number, payload: GroupUpdateRequest): Promise<GroupResponse> {
+    const { data } = await axiosInstance.put<GroupResponse>(`/groups/${groupId}`, payload);
+    return data;
+  },
+
+  async deleteGroup(groupId: number): Promise<void> {
+    await axiosInstance.delete(`/groups/${groupId}`);
+  },
+
+  async leaveGroup(groupId: number): Promise<void> {
+    await axiosInstance.post(`/groups/${groupId}/leave`);
+  },
+
+  async removeMember(groupId: number, memberId: number): Promise<void> {
+    await axiosInstance.delete(`/groups/${groupId}/members/${memberId}`);
+  },
+
   async markChatSeen(groupId: number): Promise<void> {
     await axiosInstance.post(`/groups/${groupId}/messages/seen`);
   },
 
-  async sendMessage(groupId: number, content: string): Promise<GroupMessage> {
-    const { data } = await axiosInstance.post<GroupMessage>(`/groups/${groupId}/messages`, { content });
+  async sendMessage(groupId: number, payload: SendMessagePayload): Promise<GroupMessage> {
+    const { data } = await axiosInstance.post<GroupMessage>(`/groups/${groupId}/messages`, payload);
+    return data;
+  },
+
+  async toggleReaction(groupId: number, messageId: number, emoji: string): Promise<GroupMessage> {
+    const { data } = await axiosInstance.post<GroupMessage>(`/groups/${groupId}/messages/${messageId}/reactions`, { emoji });
+    return data;
+  },
+
+  async setPinned(groupId: number, messageId: number, pinned: boolean): Promise<GroupMessage> {
+    const { data } = await axiosInstance.put<GroupMessage>(`/groups/${groupId}/messages/${messageId}/pin`, null, {
+      params: { pinned },
+    });
+    return data;
+  },
+
+  async getPinned(groupId: number, channelId: number, signal?: AbortSignal): Promise<GroupMessage[]> {
+    const { data } = await axiosInstance.get<GroupMessage[]>(`/groups/${groupId}/messages/pins`, {
+      params: { channelId },
+      signal,
+    });
+    return data;
+  },
+
+  async getThread(groupId: number, messageId: number, signal?: AbortSignal): Promise<GroupThread> {
+    const { data } = await axiosInstance.get<GroupThread>(`/groups/${groupId}/messages/${messageId}/thread`, { signal });
+    return data;
+  },
+
+  async searchMessages(groupId: number, query: string, channelId?: number, signal?: AbortSignal): Promise<GroupMessage[]> {
+    const { data } = await axiosInstance.get<GroupMessage[]>(`/groups/${groupId}/messages/search`, {
+      params: { q: query, channelId },
+      signal,
+    });
+    return data;
+  },
+
+  async createPoll(groupId: number, payload: PollRequest): Promise<GroupMessage> {
+    const { data } = await axiosInstance.post<GroupMessage>(`/groups/${groupId}/polls`, payload);
+    return data;
+  },
+
+  async votePoll(groupId: number, pollId: number, optionId: number | null): Promise<GroupMessage> {
+    const { data } = await axiosInstance.post<GroupMessage>(`/groups/${groupId}/polls/${pollId}/vote`, { optionId });
+    return data;
+  },
+
+  async getChannels(groupId: number, signal?: AbortSignal): Promise<GroupChannel[]> {
+    const { data } = await axiosInstance.get<GroupChannel[]>(`/groups/${groupId}/channels`, { signal });
+    return data;
+  },
+
+  async createChannel(groupId: number, settings: ChannelSettings): Promise<GroupChannel> {
+    const { data } = await axiosInstance.post<GroupChannel>(`/groups/${groupId}/channels`, settings);
+    return data;
+  },
+
+  async updateChannel(groupId: number, channelId: number, settings: ChannelSettings): Promise<GroupChannel> {
+    const { data } = await axiosInstance.put<GroupChannel>(`/groups/${groupId}/channels/${channelId}`, settings);
+    return data;
+  },
+
+  async deleteChannel(groupId: number, channelId: number): Promise<void> {
+    await axiosInstance.delete(`/groups/${groupId}/channels/${channelId}`);
+  },
+
+  async setModerator(groupId: number, memberId: number, moderator: boolean): Promise<void> {
+    await axiosInstance.put(`/groups/${groupId}/members/${memberId}/moderator`, null, { params: { moderator } });
+  },
+
+  async setMuted(groupId: number, muted: boolean): Promise<void> {
+    await axiosInstance.put(`/groups/${groupId}/mute`, null, { params: { muted } });
+  },
+
+  async getVoiceRoom(groupId: number): Promise<string> {
+    const { data } = await axiosInstance.get<{ url: string }>(`/groups/${groupId}/voice-room`);
+    return data.url;
+  },
+
+  async markChannelRead(groupId: number, channelId: number): Promise<void> {
+    await axiosInstance.post(`/groups/${groupId}/channels/${channelId}/read`);
+  },
+
+  async summarizeChannel(groupId: number, channelId: number): Promise<ChannelSummary> {
+    const { data } = await axiosInstance.get<ChannelSummary>(`/groups/${groupId}/messages/summary`, {
+      params: { channelId },
+      timeout: 60000,
+    });
+    return data;
+  },
+
+  async setSaved(groupId: number, messageId: number, saved: boolean): Promise<GroupMessage> {
+    const { data } = await axiosInstance.put<GroupMessage>(`/groups/${groupId}/messages/${messageId}/saved`, null, {
+      params: { saved },
+    });
+    return data;
+  },
+
+  async getSavedMessages(signal?: AbortSignal): Promise<SavedMessage[]> {
+    const { data } = await axiosInstance.get<SavedMessage[]>('/users/me/saved-messages', { signal });
+    return data;
+  },
+
+  async getModeration(groupId: number, signal?: AbortSignal): Promise<string[]> {
+    const { data } = await axiosInstance.get<{ bannedWords: string[] }>(`/groups/${groupId}/moderation`, { signal });
+    return data.bannedWords;
+  },
+
+  async updateModeration(groupId: number, bannedWords: string[]): Promise<string[]> {
+    const { data } = await axiosInstance.put<{ bannedWords: string[] }>(`/groups/${groupId}/moderation`, { bannedWords });
+    return data.bannedWords;
+  },
+
+  async getVoice(groupId: number, signal?: AbortSignal): Promise<VoiceRoom> {
+    const { data } = await axiosInstance.get<VoiceRoom>(`/groups/${groupId}/voice`, { signal });
+    return data;
+  },
+
+  async setInVoice(groupId: number, inVoice: boolean): Promise<VoiceRoom> {
+    const { data } = await axiosInstance.post<VoiceRoom>(`/groups/${groupId}/voice/${inVoice ? 'join' : 'leave'}`);
+    return data;
+  },
+
+  async getStudyRoom(groupId: number, signal?: AbortSignal): Promise<StudyRoom> {
+    const { data } = await axiosInstance.get<StudyRoom>(`/groups/${groupId}/study-room`, { signal });
+    return data;
+  },
+
+  async studyRoomAction(groupId: number, action: 'join' | 'leave' | 'stop'): Promise<StudyRoom> {
+    const { data } = await axiosInstance.post<StudyRoom>(`/groups/${groupId}/study-room/${action}`);
+    return data;
+  },
+
+  async startStudyRoom(groupId: number, focusMinutes: number, breakMinutes: number): Promise<StudyRoom> {
+    const { data } = await axiosInstance.post<StudyRoom>(`/groups/${groupId}/study-room/start`, { focusMinutes, breakMinutes });
+    return data;
+  },
+
+  async downloadCalendar(): Promise<Blob> {
+    const { data } = await axiosInstance.get<Blob>('/sessions/mine/calendar.ics', { responseType: 'blob' });
+    return data;
+  },
+
+  async getOnlineMembers(groupId: number, signal?: AbortSignal): Promise<number[]> {
+    const { data } = await axiosInstance.get<{ userIds: number[] }>(`/groups/${groupId}/online`, { signal });
+    return data.userIds;
+  },
+
+  async editMessage(groupId: number, messageId: number, content: string): Promise<GroupMessage> {
+    const { data } = await axiosInstance.put<GroupMessage>(`/groups/${groupId}/messages/${messageId}`, { content });
+    return data;
+  },
+
+  async deleteMessage(groupId: number, messageId: number): Promise<GroupMessage> {
+    const { data } = await axiosInstance.delete<GroupMessage>(`/groups/${groupId}/messages/${messageId}`);
     return data;
   },
 };

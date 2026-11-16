@@ -9,6 +9,8 @@ type Block =
 
 const cleanInline = (text: string) => text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').trim();
 
+const cleanStep = (text: string) => cleanInline(text.replace(/^(?:[-*•]\s+|\[[ xX]?\]\s*)+/, ''));
+
 const parsePlan = (content: string): Block[] => {
   let stepIndex = 0;
   return content
@@ -22,9 +24,9 @@ const parsePlan = (content: string): Block[] => {
       const boldLine = line.match(/^\*\*(.+)\*\*:?$/);
       if (boldLine) return { kind: 'heading', level: 3, text: cleanInline(boldLine[1]) };
       const bullet = line.match(/^[-*•]\s+(\S.*)$/);
-      if (bullet) return { kind: 'step', marker: '•', text: cleanInline(bullet[1]), index: stepIndex++ };
+      if (bullet) return { kind: 'step', marker: '•', text: cleanStep(bullet[1]), index: stepIndex++ };
       const numbered = line.match(/^(\d+)[.)]\s+(\S.*)$/);
-      if (numbered) return { kind: 'step', marker: `${numbered[1]}.`, text: cleanInline(numbered[2]), index: stepIndex++ };
+      if (numbered) return { kind: 'step', marker: `${numbered[1]}.`, text: cleanStep(numbered[2]), index: stepIndex++ };
       return { kind: 'paragraph', text: cleanInline(line) };
     });
 };

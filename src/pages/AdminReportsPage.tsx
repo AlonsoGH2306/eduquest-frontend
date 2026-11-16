@@ -48,13 +48,17 @@ export const AdminReportsPage: React.FC = () => {
     }
   };
 
-  const handleBan = async (user: UserResponse, reason: string) => {
+  const handleBan = async (user: UserResponse, reason: string, days: number | null) => {
     if (!banTarget) return;
     setBusyId(banTarget.report.id);
     try {
-      await banUser(user.id, reason);
+      await banUser(user.id, reason, days);
       await closeReport(banTarget.report, 'RESOLVED');
-      toast.success(`@${user.username} fue vetado y el reporte quedó resuelto`);
+      toast.success(
+        days === null
+          ? `@${user.username} fue vetado y el reporte quedó resuelto`
+          : `@${user.username} quedó suspendido ${days} ${days === 1 ? 'día' : 'días'} y el reporte se resolvió`
+      );
       setBanTarget(null);
     } catch (err) {
       toast.error(extractErrorMessage(err));
@@ -140,7 +144,7 @@ export const AdminReportsPage: React.FC = () => {
                     >
                       <CheckCircle2 size={14} /> Marcar resuelto
                     </button>
-                    {isAdmin && isUser && (
+                    {isUser && (
                       <button
                         type="button"
                         disabled={busy}
@@ -152,10 +156,10 @@ export const AdminReportsPage: React.FC = () => {
                         }
                         className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                       >
-                        <UserX size={14} /> Vetar usuario
+                        <UserX size={14} /> {isAdmin ? 'Suspender o vetar' : 'Suspender usuario'}
                       </button>
                     )}
-                    {isAdmin && !isUser && (
+                    {!isUser && (
                       <button
                         type="button"
                         disabled={busy}
@@ -193,7 +197,9 @@ export const AdminReportsPage: React.FC = () => {
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           Revisa lo que reporta la comunidad.{' '}
-          {isAdmin ? 'Puedes vetar usuarios o eliminar materiales.' : 'Como manager puedes resolver o descartar reportes.'}
+          {isAdmin
+            ? 'Puedes suspender o vetar usuarios y eliminar materiales.'
+            : 'Como gestor puedes resolver reportes, eliminar materiales y suspender estudiantes hasta 7 días.'}
         </p>
       </div>
 
@@ -221,6 +227,7 @@ export const AdminReportsPage: React.FC = () => {
       <BanUserModal
         user={banTarget?.user ?? null}
         saving={busyId !== null}
+        allowPermanent={isAdmin}
         onConfirm={handleBan}
         onClose={() => setBanTarget(null)}
       />

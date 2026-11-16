@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useMemo, useState } from 'react';
 import { AuthResponse, LoginRequest, RegisterRequest } from '../types';
 import { authService } from '../services/authService';
 import { tokenStorage } from '../utils/tokenStorage';
+import { realtime } from '../services/realtime';
 import { roleLabel } from '../utils/roles';
 
 interface AuthContextType {
@@ -37,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const logout = useCallback(() => {
+    realtime.stop();
     tokenStorage.clearSession();
     setUser(null);
   }, []);

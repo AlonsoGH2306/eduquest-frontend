@@ -1,18 +1,25 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, MessageCircle, Send } from 'lucide-react';
-import { UserSummary } from '../../types';
+import { ArrowLeft, MessageCircle, Trash2 } from 'lucide-react';
+import { ChatAttachment, UserStatus, UserSummary } from '../../types';
+import { personalService } from '../../services/personalService';
+import { availabilityDot, availabilityLabel } from '../../utils/availability';
 import { useDirectChat } from '../../hooks/useDirectChat';
+import { useAuth } from '../../hooks/useAuth';
 import { extractErrorMessage } from '../../utils/errors';
 import { UserAvatar } from '../common/UserAvatar';
 import { AdvisorBadge } from '../common/AdvisorBadge';
 import { Spinner } from '../common/Spinner';
 import { ErrorState } from '../common/ErrorState';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { uploadChatFile } from '../chat/ChatAttachButton';
+import { MessageBubble } from '../chat/MessageBubble';
+import { ChatComposer } from '../chat/ChatComposer';
+import { TypingIndicator } from '../chat/TypingIndicator';
+import { useChatActions } from '../chat/useChatActions';
 
-const TIME = new Intl.DateTimeFormat('es-PE', { hour: '2-digit', minute: '2-digit' });
 const DAY = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
-const MAX_LENGTH = 1000;
 
 const dayKey = (value: string) => new Date(value).toDateString();
 
@@ -23,14 +30,26 @@ interface DirectChatProps {
 }
 
 export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onSent }) => {
-  const { messages, loading, error, hasOlder, loadingOlder, sendMessage, loadOlder } = useDirectChat(partner.id);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
+  const { user } = useAuth();
+  const chat = useDirectChat(partner.id);
+  const { messages, loading, error, hasOlder, loadingOlder, typingNames, notifyTyping, loadOlder } = chat;
+  const actions = useChatActions(chat);
   const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottom = useRef(true);
   const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
   const lastIncomingId = [...messages].reverse().find((message) => !message.mine)?.id ?? null;
+  const { setContext } = actions;
+  const [status, setStatus] = useState<UserStatus | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStatus(null);
+    personalService
+      .getStatuses([partner.id], controller.signal)
+      .then((statuses) => setStatus(statuses[0] ?? null))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [partner.id]);
 
   useLayoutEffect(() => {
     const list = listRef.current;
@@ -39,9 +58,8 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
 
   useEffect(() => {
     stickToBottom.current = true;
-    setDraft('');
-    inputRef.current?.focus();
-  }, [partner.id]);
+    setContext(null);
+  }, [partner.id, setContext]);
 
   useEffect(() => {
     if (!loading && !error) onIncoming();
@@ -53,25 +71,27 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
     stickToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
   };
 
-  const submit = async (event?: React.FormEvent) => {
-    event?.preventDefault();
-    const content = draft.trim();
-    if (!content || sending) return;
-    setSending(true);
+  const send = async (content: string, attachment?: ChatAttachment) => {
+    const editing = actions.context?.mode === 'edit';
+    stickToBottom.current = !editing;
+    await actions.send(content, attachment);
+    if (!editing) onSent();
+  };
+
+  const onDropImage = async (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file || actions.context?.mode === 'edit') return;
     try {
-      stickToBottom.current = true;
-      await sendMessage(content);
-      setDraft('');
-      onSent();
+      const attachment = await uploadChatFile(file);
+      if (attachment) await send('', attachment);
     } catch (err) {
       toast.error(extractErrorMessage(err));
-    } finally {
-      setSending(false);
     }
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col">
+    <section onDragOver={(event) => event.preventDefault()} onDrop={onDropImage} className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
         <Link
           to="/messages"
@@ -80,14 +100,31 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
         >
           <ArrowLeft size={18} />
         </Link>
-        <UserAvatar username={partner.username} avatarUrl={partner.avatarUrl} size={36} />
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-900">
-            @{partner.username}
-            {partner.advisor && <AdvisorBadge compact />}
-          </p>
-          <p className="text-[11px] text-slate-500">Conversación privada</p>
-        </div>
+        <Link to={`/users/${partner.id}`} className="flex min-w-0 items-center gap-3" title="Ver perfil">
+          <UserAvatar username={partner.username} avatarUrl={partner.avatarUrl} size={36} />
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 truncate text-sm font-bold text-slate-900">
+              @{partner.username}
+              {partner.advisor && <AdvisorBadge compact />}
+            </p>
+            <p className="flex items-center gap-1.5 truncate text-[11px] text-slate-500">
+              {typingNames.length > 0 ? (
+                'Escribiendo…'
+              ) : status ? (
+                <>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${availabilityDot(status.availability, status.online)}`} />
+                  {status.statusText
+                    ? `${status.statusEmoji ?? ''} ${status.statusText}`.trim()
+                    : status.online
+                      ? availabilityLabel(status.availability)
+                      : 'Desconectado'}
+                </>
+              ) : (
+                'Conversación privada'
+              )}
+            </p>
+          </div>
+        </Link>
       </header>
 
       {loading ? (
@@ -131,16 +168,20 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
                       {DAY.format(new Date(message.createdAt))}
                     </p>
                   )}
-                  <div className={`flex ${message.mine ? 'justify-end' : 'justify-start'} ${grouped ? '' : 'pt-2'}`}>
-                    <div className={`flex max-w-[75%] flex-col ${message.mine ? 'items-end' : 'items-start'}`}>
-                      <div
-                        className={`rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap ${
-                          message.mine ? 'rounded-tr-md bg-indigo-600 text-white' : 'rounded-tl-md bg-slate-100 text-slate-800'
-                        }`}
-                      >
-                        {message.content}
-                      </div>
-                      <span className="mt-0.5 text-[10px] text-slate-400">{TIME.format(new Date(message.createdAt))}</span>
+                  <div
+                    id={`chat-message-${message.id}`}
+                    className={`flex rounded-xl transition-colors ${message.mine ? 'justify-end' : 'justify-start'} ${grouped ? '' : 'pt-2'}`}
+                  >
+                    <div className="max-w-[80%]">
+                      <MessageBubble
+                        message={message}
+                        canDelete={message.mine}
+                        onReply={() => actions.reply(message, message.mine ? (user?.username ?? '') : partner.username)}
+                        onEdit={() => actions.edit(message)}
+                        onDelete={() => actions.setToDelete(message)}
+                        onJumpTo={actions.jumpTo}
+                        myUsername={user?.username}
+                      />
                     </div>
                   </div>
                 </React.Fragment>
@@ -150,35 +191,29 @@ export const DirectChat: React.FC<DirectChatProps> = ({ partner, onIncoming, onS
         </div>
       )}
 
-      <form onSubmit={submit} className="flex items-end gap-2 border-t border-slate-100 p-3">
-        <label htmlFor="direct-message" className="sr-only">
-          Escribe un mensaje
-        </label>
-        <textarea
-          id="direct-message"
-          ref={inputRef}
-          rows={1}
-          value={draft}
-          maxLength={MAX_LENGTH}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              void submit();
-            }
-          }}
-          placeholder={`Mensaje para @${partner.username}`}
-          className="max-h-32 flex-1 resize-none rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
-        />
-        <button
-          type="submit"
-          disabled={sending || !draft.trim()}
-          aria-label="Enviar mensaje"
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:opacity-40"
-        >
-          <Send size={16} />
-        </button>
-      </form>
+      <TypingIndicator names={typingNames} />
+      <ChatComposer
+        inputId="direct-message"
+        placeholder={`Mensaje para @${partner.username}`}
+        context={actions.context}
+        resetKey={partner.id}
+        onCancelContext={() => actions.setContext(null)}
+        onSend={send}
+        onTyping={notifyTyping}
+      />
+
+      <ConfirmModal
+        isOpen={actions.toDelete !== null}
+        title="Eliminar mensaje"
+        message="Se mostrará «Mensaje eliminado» en la conversación. No se puede deshacer."
+        confirmLabel="Eliminar"
+        loadingLabel="Eliminando..."
+        destructive
+        loading={actions.deleting}
+        icon={<Trash2 size={14} />}
+        onConfirm={() => void actions.confirmDelete()}
+        onClose={() => actions.setToDelete(null)}
+      />
     </section>
   );
 };

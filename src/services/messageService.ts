@@ -1,5 +1,5 @@
 import { axiosInstance } from './axiosInstance';
-import { Conversation, DirectMessage, UserSummary } from '../types';
+import { Conversation, DirectMessage, SendMessagePayload, UserSummary } from '../types';
 
 export const messageService = {
   async getConversations(signal?: AbortSignal): Promise<Conversation[]> {
@@ -34,8 +34,18 @@ export const messageService = {
     return data;
   },
 
-  async sendMessage(userId: number, content: string): Promise<DirectMessage> {
-    const { data } = await axiosInstance.post<DirectMessage>(`/conversations/${userId}/messages`, { content });
+  async sendMessage(userId: number, payload: SendMessagePayload): Promise<DirectMessage> {
+    const { data } = await axiosInstance.post<DirectMessage>(`/conversations/${userId}/messages`, payload);
+    return data;
+  },
+
+  async editMessage(userId: number, messageId: number, content: string): Promise<DirectMessage> {
+    const { data } = await axiosInstance.put<DirectMessage>(`/conversations/${userId}/messages/${messageId}`, { content });
+    return data;
+  },
+
+  async deleteMessage(userId: number, messageId: number): Promise<DirectMessage> {
+    const { data } = await axiosInstance.delete<DirectMessage>(`/conversations/${userId}/messages/${messageId}`);
     return data;
   },
 
