@@ -10,12 +10,14 @@ import { LeaderboardList } from '../components/achievements/LeaderboardList';
 import { LeaderboardPeriod } from '../types';
 
 const POINT_RULES = [
-  { label: 'Compartir un material', points: 10 },
-  { label: 'Agendar una asesoría', points: 8 },
-  { label: 'Reseñar un material', points: 5 },
-  { label: 'Calificar una asesoría', points: 4 },
-  { label: 'Asistir a una asesoría («Unirme ahora»)', points: 3 },
-  { label: 'Confirmar asistencia', points: 1 },
+  { label: 'Tu respuesta del foro es elegida como la solución', points: 8 },
+  { label: 'Dictar una asesoría a la que asiste alguien', points: 10 },
+  { label: 'Asistir a una asesoría («Unirme ahora»)', points: 5 },
+  { label: 'Compartir un material', points: 5 },
+  { label: 'Tu material recibe una reseña de 4 o 5 estrellas', points: 3 },
+  { label: 'Reseñar un material', points: 2 },
+  { label: 'Calificar una asesoría', points: 2 },
+  { label: 'Cada ▲ que recibe tu respuesta (hasta 5)', points: 1 },
   { label: 'Confirmar y no asistir', points: -3 },
 ];
 
@@ -44,19 +46,19 @@ export const AchievementsPage: React.FC = () => {
                 <p className="mt-3 text-3xl font-extrabold">{profile.points}</p>
                 <p className="text-xs text-indigo-100">puntos totales</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
                 <Flame size={20} className="text-orange-500" />
                 <p className="mt-3 text-3xl font-extrabold text-slate-900">{profile.weeklyPoints}</p>
                 <p className="text-xs text-slate-500">puntos esta semana</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
                 <Medal size={20} className="text-amber-500" />
                 <p className="mt-3 text-3xl font-extrabold text-slate-900">{profile.rank ? `#${profile.rank}` : '—'}</p>
                 <p className="text-xs text-slate-500">{profile.rank ? 'puesto general' : 'suma puntos para entrar al ranking'}</p>
               </div>
             </div>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6">
               <h2 className="mb-1 text-base font-bold text-slate-900">Insignias</h2>
               <p className="mb-4 text-xs text-slate-500">
                 {profile.badges.filter((badge) => badge.earned).length} de {profile.badges.length} desbloqueadas
@@ -64,13 +66,13 @@ export const AchievementsPage: React.FC = () => {
               <BadgeGrid badges={profile.badges} />
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6">
               <h2 className="mb-3 text-base font-bold text-slate-900">¿Cómo se ganan puntos?</h2>
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {POINT_RULES.map((rule) => (
-                  <li key={rule.label} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                  <li key={rule.label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm">
                     <span className="text-slate-700">{rule.label}</span>
-                    <span className={`font-bold ${rule.points < 0 ? 'text-red-600' : 'text-indigo-700'}`}>
+                    <span className={`shrink-0 font-bold ${rule.points < 0 ? 'text-red-600' : 'text-indigo-700'}`}>
                       {rule.points > 0 ? `+${rule.points}` : rule.points}
                     </span>
                   </li>
@@ -79,10 +81,10 @@ export const AchievementsPage: React.FC = () => {
             </section>
           </div>
 
-          <section className="self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+          <section className="self-start rounded-3xl border border-slate-200 bg-white p-6">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-base font-bold text-slate-900">Ranking</h2>
-              <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold" role="tablist">
+              <div className="flex rounded-full bg-slate-100 p-1 text-xs font-semibold" role="tablist">
                 {(['week', 'all'] as LeaderboardPeriod[]).map((option) => (
                   <button
                     key={option}
@@ -90,8 +92,8 @@ export const AchievementsPage: React.FC = () => {
                     role="tab"
                     aria-selected={period === option}
                     onClick={() => setPeriod(option)}
-                    className={`rounded-lg px-2.5 py-1 transition ${
-                      period === option ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500'
+                    className={`rounded-full px-3 py-1 transition ${
+                      period === option ? 'bg-indigo-600 text-white' : 'text-slate-500'
                     }`}
                   >
                     {option === 'week' ? 'Semana' : 'Histórico'}
