@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { CheckCircle2, FileText, Flag, ShieldCheck, Trash2, User, UserX, XCircle } from 'lucide-react';
+import { CheckCircle2, FileText, Flag, Trash2, User, UserX, XCircle } from 'lucide-react';
 import { ReportResponse, ReportStatus, UserResponse } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useAdminReports } from '../hooks/useAdminReports';
 import { usePageParams } from '../hooks/usePageParams';
 import { extractErrorMessage } from '../utils/errors';
 import { formatDateTime } from '../utils/formatDate';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
 import { Spinner } from '../components/common/Spinner';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { BanUserModal } from '../components/admin/BanUserModal';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
   { value: 'OPEN', label: 'Pendientes' },
@@ -100,7 +99,7 @@ export const AdminReportsPage: React.FC = () => {
             const isUser = report.targetType === 'USER';
             const busy = busyId === report.id;
             return (
-              <li key={report.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+              <li key={report.id} className="rounded-3xl border border-slate-200 bg-white p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <span
@@ -132,7 +131,7 @@ export const AdminReportsPage: React.FC = () => {
                       type="button"
                       disabled={busy}
                       onClick={() => close(report, 'DISMISSED', 'Reporte descartado')}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                     >
                       <XCircle size={14} /> Descartar
                     </button>
@@ -189,21 +188,16 @@ export const AdminReportsPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración', to: '/admin/users' }, { label: 'Reportes' }]} />
-
-      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-          <ShieldCheck size={24} className="text-indigo-600" /> Moderación
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Revisa lo que reporta la comunidad.{' '}
-          {isAdmin
-            ? 'Puedes suspender o vetar usuarios y eliminar materiales.'
-            : 'Como gestor puedes resolver reportes, eliminar materiales y suspender estudiantes hasta 7 días.'}
-        </p>
-      </div>
-
-      <AdminTabs />
+      <AdminHeader
+        section="Reportes"
+        title="Reportes"
+        description={
+          isAdmin
+            ? 'Revisa lo que reporta la comunidad. Puedes suspender o vetar usuarios y eliminar materiales.'
+            : 'Revisa lo que reporta la comunidad. Como gestor puedes resolver reportes, eliminar materiales y suspender estudiantes hasta 7 días.'
+        }
+        icon={<Flag size={24} />}
+      />
 
       <div className="mb-4 flex flex-wrap gap-2" role="tablist">
         {STATUS_OPTIONS.map((option) => (

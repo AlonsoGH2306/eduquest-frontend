@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { ShieldCheck, TriangleAlert, UserCheck, Users, UserX } from 'lucide-react';
+import { TriangleAlert, UserCheck, Users, UserX } from 'lucide-react';
 import { UserResponse } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useAdminUsers } from '../hooks/useAdminUsers';
 import { usePageParams } from '../hooks/usePageParams';
 import { extractErrorMessage } from '../utils/errors';
 import { primaryRole, ROLE_OPTIONS, roleLabel } from '../utils/roles';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
@@ -17,7 +16,7 @@ import { UserAvatar } from '../components/common/UserAvatar';
 import { BanUserModal } from '../components/admin/BanUserModal';
 import { WarnUserModal } from '../components/admin/WarnUserModal';
 import { adminService } from '../services/adminService';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 export const AdminUsersPage: React.FC = () => {
   const { user: currentUser, isAdmin } = useAuth();
@@ -104,7 +103,7 @@ export const AdminUsersPage: React.FC = () => {
     }
     return (
       <>
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
               <tr>
@@ -216,25 +215,21 @@ export const AdminUsersPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración de usuarios' }]} />
-
-      <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-            <ShieldCheck size={24} className="text-indigo-600" /> Administración de usuarios
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isAdmin
-              ? 'Consulta las cuentas registradas, actualiza su rol y veta a quienes incumplan las normas.'
-              : 'Como gestor puedes advertir y suspender estudiantes hasta 7 días. Solo un administrador cambia roles o veta para siempre.'}
-          </p>
-        </div>
-        <span className="hidden items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 sm:inline-flex">
-          <Users size={15} /> {totalElements} usuarios
-        </span>
-      </div>
-
-      <AdminTabs />
+      <AdminHeader
+        section="Usuarios"
+        title="Usuarios"
+        description={
+          isAdmin
+            ? 'Consulta las cuentas registradas, actualiza su rol y veta a quienes incumplan las normas.'
+            : 'Como gestor puedes advertir y suspender estudiantes hasta 7 días. Solo un administrador cambia roles o veta para siempre.'
+        }
+        icon={<Users size={24} />}
+        aside={
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-sm font-semibold text-white">
+            <Users size={15} /> {totalElements} usuarios
+          </span>
+        }
+      />
 
       {renderTable()}
 

@@ -71,25 +71,27 @@ export const StatusMenu: React.FC = () => {
   if (!user) return null;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0 flex-1">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-label="Mi estado y perfil"
-        className="flex items-center gap-2 rounded-xl px-2 py-1 transition hover:bg-slate-100"
+        className="flex w-full min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left transition hover:bg-hover"
       >
-        <span className="relative">
+        <span className="relative shrink-0">
           <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size={32} />
-          <span className={`absolute right-0 bottom-0 h-2.5 w-2.5 rounded-full ring-2 ring-white ${availabilityDot(availability)}`} />
+          <span
+            className={`absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full ring-[3px] ring-[var(--eq-panel)] ${availabilityDot(availability)}`}
+          />
         </span>
-        <span className="hidden max-w-36 text-left 2xl:block">
-          <span className="block truncate text-xs font-semibold text-slate-800">{user.username}</span>
-          <span className="block truncate text-[11px] text-slate-500">{text ? `${emoji} ${text}`.trim() : roleName}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold text-ink">{user.username}</span>
+          <span className="block truncate text-[11px] text-faint">{text ? `${emoji} ${text}`.trim() : roleName}</span>
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="absolute bottom-full left-0 z-50 mb-3 w-72 rounded-lg border border-slate-200 bg-white p-3 shadow-2xl">
           <p className="mb-2 text-[11px] font-bold tracking-wide text-slate-500 uppercase">Disponibilidad</p>
           <div className="grid grid-cols-2 gap-1">
             {AVAILABILITY_OPTIONS.map((option) => (
@@ -145,7 +147,7 @@ export const StatusMenu: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-full bg-indigo-600 px-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               Guardar
             </button>

@@ -132,7 +132,7 @@ export const BanUserModal: React.FC<BanUserModalProps> = ({ user, saving, allowP
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancelar
           </button>

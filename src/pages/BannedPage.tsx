@@ -72,7 +72,7 @@ export const BannedPage: React.FC = () => {
         <button
           type="button"
           onClick={goBack}
-          className="mt-6 ml-2 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+          className="mt-6 ml-2 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
         >
           <ArrowLeft size={15} /> Volver al inicio de sesión
         </button>

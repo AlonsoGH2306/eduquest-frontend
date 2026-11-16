@@ -12,9 +12,9 @@ export const ThemeToggle: React.FC = () => {
       onClick={toggleTheme}
       aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       title={isDark ? 'Modo claro' : 'Modo oscuro'}
-      className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+      className="flex h-8 w-8 items-center justify-center rounded-md text-soft transition hover:bg-hover hover:text-ink"
     >
-      {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 };

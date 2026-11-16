@@ -158,7 +158,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({ document, onClose }) =
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {editingReview ? <Pencil size={12} /> : <Send size={12} />}
               {isSubmitting

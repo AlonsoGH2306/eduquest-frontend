@@ -68,7 +68,7 @@ export const EmailVerificationBanner: React.FC = () => {
         <button
           type="submit"
           disabled={verifying}
-          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="rounded-full bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           {verifying ? 'Verificando...' : 'Verificar'}
         </button>

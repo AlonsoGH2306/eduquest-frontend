@@ -1,18 +1,17 @@
 import React, { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CalendarClock, CheckCircle2, XCircle } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Scale, XCircle } from 'lucide-react';
 import { AppealStatus, BanAppeal } from '../types';
 import { adminService } from '../services/adminService';
 import { usePaginatedFetch } from '../hooks/usePaginatedFetch';
 import { usePageParams } from '../hooks/usePageParams';
 import { extractErrorMessage } from '../utils/errors';
 import { formatDateTime } from '../utils/formatDate';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
 import { Spinner } from '../components/common/Spinner';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 const STATUS_OPTIONS: { value: AppealStatus; label: string }[] = [
   { value: 'PENDING', label: 'Pendientes' },
@@ -65,7 +64,7 @@ export const AdminAppealsPage: React.FC = () => {
       <>
         <ul className="space-y-3">
           {items.map((appeal) => (
-            <li key={appeal.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <li key={appeal.id} className="rounded-3xl border border-slate-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">@{appeal.username}</h3>
@@ -99,7 +98,7 @@ export const AdminAppealsPage: React.FC = () => {
                       type="button"
                       disabled={busyId === appeal.id}
                       onClick={() => decide(appeal, false)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                     >
                       <XCircle size={14} /> Rechazar
                     </button>
@@ -139,8 +138,12 @@ export const AdminAppealsPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración', to: '/admin' }, { label: 'Apelaciones' }]} />
-      <AdminTabs />
+      <AdminHeader
+        section="Apelaciones"
+        title="Apelaciones"
+        description="Usuarios suspendidos o vetados que piden revisar su caso. Acepta para levantar la sanción o rechaza explicando por qué."
+        icon={<Scale size={24} />}
+      />
       <div className="mb-4 flex gap-2">
         {STATUS_OPTIONS.map((option) => (
           <button

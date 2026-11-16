@@ -13,8 +13,8 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, icon, label, onCli
     role="tab"
     aria-selected={active}
     onClick={onClick}
-    className={`inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap transition ${
-      active ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+    className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition ${
+      active ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
     }`}
   >
     {icon} {label}

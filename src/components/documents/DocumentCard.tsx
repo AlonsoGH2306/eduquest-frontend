@@ -110,7 +110,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   };
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-indigo-200 hover:shadow-md">
+    <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-indigo-200 hover:shadow-md">
       <div>
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 text-indigo-600">
@@ -196,22 +196,31 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
         )}
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <div className="flex items-center gap-1">
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+        <button
+          type="button"
+          onClick={() => setPreviewing(true)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-600 px-4 text-sm font-bold text-white transition hover:bg-indigo-700"
+        >
+          <Eye size={15} /> Ver
+        </button>
+        <button
+          type="button"
+          onClick={() => setStudying(true)}
+          title="Quiz y flashcards con IA"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-50 px-3.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+        >
+          <GraduationCap size={15} /> Estudiar
+        </button>
+        <div className="ml-auto flex items-center">
           <button
             type="button"
             onClick={() => onOpenReviews(document)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Reseñas"
+            title="Reseñas"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-800"
           >
-            <MessageSquarePlus size={14} /> Reseñas
-          </button>
-          <button
-            type="button"
-            onClick={() => setStudying(true)}
-            title="Quiz y flashcards con IA"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50"
-          >
-            <GraduationCap size={14} /> Estudiar
+            <MessageSquarePlus size={16} />
           </button>
           {canFeature && (
             <button
@@ -221,11 +230,11 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               aria-pressed={Boolean(document.featured)}
               aria-label={document.featured ? 'Quitar de destacados' : 'Destacar material'}
               title={document.featured ? 'Quitar de destacados' : 'Destacar'}
-              className={`rounded-lg p-1.5 transition disabled:opacity-50 ${
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition disabled:opacity-50 ${
                 document.featured ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-amber-50 hover:text-amber-600'
               }`}
             >
-              <Sparkles size={14} />
+              <Sparkles size={16} />
             </button>
           )}
           {canEdit && (
@@ -234,9 +243,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               onClick={() => setEditing(true)}
               aria-label="Editar material"
               title="Editar"
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-800"
             >
-              <Pencil size={14} />
+              <Pencil size={16} />
             </button>
           )}
           {canDelete && (
@@ -245,9 +254,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               onClick={() => setConfirmingDelete(true)}
               aria-label="Eliminar material"
               title="Eliminar"
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
             >
-              <Trash2 size={14} />
+              <Trash2 size={16} />
             </button>
           )}
           {!isMine && (
@@ -256,20 +265,12 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               onClick={() => setReporting(true)}
               aria-label="Reportar material"
               title="Reportar"
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-600"
             >
-              <Flag size={14} />
+              <Flag size={16} />
             </button>
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => setPreviewing(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-600 hover:text-white"
-        >
-          <Eye size={13} /> Ver material
-        </button>
       </div>
 
       <DocumentPreviewModal document={previewing ? document : null} onClose={() => setPreviewing(false)} />

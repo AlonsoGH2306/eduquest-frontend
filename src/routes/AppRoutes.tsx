@@ -1,9 +1,7 @@
 import React, { lazy, Suspense } from 'react';
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { Spinner } from '../components/common/Spinner';
-import { Navbar } from '../components/layout/Navbar';
-import { OfflineBanner } from '../components/layout/OfflineBanner';
-import { EmailVerificationBanner } from '../components/auth/EmailVerificationBanner';
+import { AppShell } from '../components/layout/AppShell';
 import { PrivateRoute } from '../components/layout/PrivateRoute';
 import { PublicOnlyRoute } from '../components/layout/PublicOnlyRoute';
 import { MyGroupsProvider } from '../contexts/MyGroupsContext';
@@ -43,16 +41,7 @@ const ProtectedLayout: React.FC = () => (
   <MyGroupsProvider>
     <NotificationsProvider>
       <SavedDocumentsProvider>
-        <div className="min-h-screen bg-slate-50 text-slate-900">
-          <OfflineBanner />
-          <Navbar />
-          <EmailVerificationBanner />
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-            <Suspense fallback={<Spinner label="Cargando..." />}>
-              <Outlet />
-            </Suspense>
-          </main>
-        </div>
+        <AppShell />
       </SavedDocumentsProvider>
     </NotificationsProvider>
   </MyGroupsProvider>

@@ -121,14 +121,15 @@ export const GlobalSearch: React.FC = () => {
   };
 
   return (
-    <div ref={ref} className="relative hidden lg:block">
+    <div ref={ref} className="relative">
       <label htmlFor="global-search" className="sr-only">
         Buscar en EduQuest
       </label>
-      <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 focus-within:border-indigo-400">
-        <Search size={14} className="text-slate-400" />
+      <div className="flex h-9 items-center gap-1.5 rounded-lg bg-panel px-2.5 ring-indigo-500 focus-within:ring-2">
+        <Search size={14} className="shrink-0 text-faint" />
         <input
           id="global-search"
+          aria-keyshortcuts="Control+K"
           ref={inputRef}
           value={query}
           onChange={(event) => {
@@ -149,8 +150,8 @@ export const GlobalSearch: React.FC = () => {
               setOpen(false);
             }
           }}
-          placeholder="Buscar (Ctrl+K)"
-          className="w-40 bg-transparent text-xs focus:outline-hidden xl:w-52"
+          placeholder="Buscar apuntes, grupos o gente"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-faint focus:outline-hidden"
         />
         {query && (
           <button type="button" onClick={() => setQuery('')} aria-label="Limpiar búsqueda" className="text-slate-400">
@@ -159,7 +160,7 @@ export const GlobalSearch: React.FC = () => {
         )}
       </div>
       {open && debounced.length >= 2 && (
-        <div className="absolute right-0 z-50 mt-2 max-h-[70vh] w-96 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+        <div className="absolute top-full left-0 z-50 mt-2 max-h-[70vh] w-[min(92vw,24rem)] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-2xl">
           {loading && !result && <p className="p-3 text-xs text-slate-400">Buscando...</p>}
           {result && sections.length === 0 && <p className="p-3 text-xs text-slate-500">Sin resultados para «{debounced}».</p>}
           {sections.map((section) => (

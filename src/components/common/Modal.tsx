@@ -30,7 +30,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-noche/70 p-4 backdrop-blur-xs"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -39,22 +39,22 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white shadow-xl transition-all ${size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}`}
+        className={`eq-scroll max-h-[90vh] w-full overflow-y-auto rounded-3xl bg-white shadow-2xl transition-all ${size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}`}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 id={titleId} className="truncate pr-4 text-lg font-semibold text-slate-800">
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <h2 id={titleId} className="truncate pr-4 font-display text-xl font-bold text-slate-900">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="px-6 pt-2 pb-6">{children}</div>
       </div>
     </div>
   );

@@ -88,7 +88,7 @@ export const InvitePage: React.FC = () => {
           <button
             type="button"
             onClick={() => goToGroup(group)}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
           >
             Ya eres miembro · Ir al grupo <ArrowRight size={16} />
           </button>
@@ -98,7 +98,7 @@ export const InvitePage: React.FC = () => {
               type="button"
               onClick={accept}
               disabled={joining}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               <UserPlus size={16} /> {joining ? 'Uniéndote...' : 'Aceptar invitación'}
             </button>

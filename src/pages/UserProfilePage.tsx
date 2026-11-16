@@ -21,7 +21,7 @@ const memberSince = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }) : null;
 
 const Stat: React.FC<{ icon: React.ReactNode; label: string; value: string | number }> = ({ icon, label, value }) => (
-  <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+  <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4">
     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">{icon}</span>
     <div>
       <p className="text-lg font-bold text-slate-900">{value}</p>
@@ -98,7 +98,7 @@ export const UserProfilePage: React.FC = () => {
           {user.me ? (
             <Link
               to="/profile"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
             >
               <Pencil size={16} /> Editar mi perfil
             </Link>
@@ -119,7 +119,7 @@ export const UserProfilePage: React.FC = () => {
               </button>
               <Link
                 to={`/messages/${user.id}`}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
                 <MessageCircle size={16} /> Mensaje
               </Link>

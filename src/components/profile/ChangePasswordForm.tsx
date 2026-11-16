@@ -41,7 +41,7 @@ export const ChangePasswordForm: React.FC = () => {
   };
 
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+    <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-6">
       <h2 className="flex items-center gap-1.5 text-base font-bold text-slate-900">
         <KeyRound size={16} className="text-indigo-600" /> Contraseña
       </h2>
@@ -99,7 +99,7 @@ export const ChangePasswordForm: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <KeyRound size={14} /> {isSubmitting ? 'Guardando...' : 'Cambiar contraseña'}
           </button>

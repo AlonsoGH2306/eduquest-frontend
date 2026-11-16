@@ -95,7 +95,7 @@ export const NotificationBell: React.FC = () => {
         aria-label={unreadNotifications > 0 ? `Notificaciones, ${unreadNotifications} sin leer` : 'Notificaciones'}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+        className="relative flex h-8 w-8 items-center justify-center rounded-md text-soft transition hover:bg-hover hover:text-ink"
       >
         <Bell size={18} />
         {unreadNotifications > 0 && (
@@ -109,7 +109,7 @@ export const NotificationBell: React.FC = () => {
         <div
           role="dialog"
           aria-label="Notificaciones"
-          className="absolute right-0 z-50 mt-2 w-[min(92vw,24rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+          className="fixed bottom-16 left-2 z-50 w-[min(92vw,24rem)] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl"
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-bold text-slate-900">Notificaciones</p>

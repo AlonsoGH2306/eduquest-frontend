@@ -107,7 +107,7 @@ export const CalendarPage: React.FC = () => {
           <button
             type="button"
             onClick={goToday}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
           >
             Hoy
           </button>
@@ -135,7 +135,7 @@ export const CalendarPage: React.FC = () => {
         <ErrorState message={error} onRetry={reload} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white">
             {loading && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
                 <Spinner label="Cargando sesiones..." />
@@ -185,7 +185,7 @@ export const CalendarPage: React.FC = () => {
           </section>
 
           <aside className="space-y-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section className="rounded-3xl border border-slate-200 bg-white p-5">
               <h2 className="text-sm font-bold text-slate-900 capitalize">{DAY_TITLE.format(selected)}</h2>
               {selectedSessions.length === 0 ? (
                 <p className="mt-3 text-sm text-slate-500">No hay asesorías este día.</p>
@@ -228,7 +228,7 @@ export const CalendarPage: React.FC = () => {
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <section className="rounded-3xl border border-slate-200 bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
                 <CalendarDays size={16} className="text-indigo-600" /> Próximas que confirmaste
               </h2>

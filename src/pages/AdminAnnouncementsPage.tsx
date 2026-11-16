@@ -7,8 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { adminService } from '../services/adminService';
 import { extractErrorMessage } from '../utils/errors';
 import { applyServerErrors, inputClass } from '../utils/forms';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 interface AnnouncementForm {
   audience: 'ALL' | 'USER';
@@ -66,23 +65,17 @@ export const AdminAnnouncementsPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración', to: '/admin/users' }, { label: 'Avisos' }]} />
-
-      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-          <Megaphone size={24} className="text-indigo-600" /> Avisos
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          El aviso llega a la campana de notificaciones de cada destinatario en la web y en la app.
-        </p>
-      </div>
-
-      <AdminTabs />
+      <AdminHeader
+        section="Avisos"
+        title="Avisos"
+        description="El aviso llega a la campana de notificaciones de cada destinatario en la web y en la app."
+        icon={<Megaphone size={24} />}
+      />
 
       <form
         onSubmit={handleSubmit(onSubmit)}
         noValidate
-        className="max-w-2xl space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs"
+        className="max-w-2xl space-y-5 rounded-3xl border border-slate-200 bg-white p-6"
       >
         <fieldset>
           <legend className="text-sm font-semibold text-slate-700">Destinatarios</legend>
@@ -156,7 +149,7 @@ export const AdminAnnouncementsPage: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <Send size={15} /> {isSubmitting ? 'Enviando...' : 'Enviar aviso'}
           </button>

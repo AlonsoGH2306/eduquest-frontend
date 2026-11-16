@@ -4,9 +4,8 @@ import { BarChart3, CalendarDays, FileText, Flag, ShieldCheck, UserPlus, Users, 
 import { adminService } from '../services/adminService';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../hooks/useAuth';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { ErrorState } from '../components/common/ErrorState';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 interface Metric {
   label: string;
@@ -36,16 +35,12 @@ export const AdminOverviewPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración', to: '/admin/overview' }, { label: 'Resumen' }]} />
-
-      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-          <ShieldCheck size={24} className="text-indigo-600" /> {isAdmin ? 'Administración' : 'Moderación'}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">Cómo va la comunidad de EduQuest esta semana.</p>
-      </div>
-
-      <AdminTabs />
+      <AdminHeader
+        section="Resumen"
+        title={isAdmin ? 'Administración' : 'Moderación'}
+        description="Cómo va la comunidad de EduQuest esta semana."
+        icon={<ShieldCheck size={24} />}
+      />
 
       {error ? (
         <ErrorState message={error} onRetry={reload} />
@@ -53,7 +48,7 @@ export const AdminOverviewPage: React.FC = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {loading && !stats
             ? Array.from({ length: 7 }, (_, index) => (
-                <div key={index} className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+                <div key={index} className="h-32 animate-pulse rounded-3xl border border-slate-200 bg-white" />
               ))
             : metrics.map(({ label, value, hint, Icon, tone, to }) => {
                 const content = (

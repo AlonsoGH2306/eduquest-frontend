@@ -9,7 +9,7 @@ export const FollowingList: React.FC = () => {
   const { data, loading } = useFetch(useCallback((signal: AbortSignal) => userService.getFollowing(signal), []));
 
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+    <section className="mb-6 rounded-3xl border border-slate-200 bg-white p-6">
       <h2 className="text-base font-bold text-slate-900">Personas que sigo</h2>
       <p className="mt-1 text-xs text-slate-500">Te avisamos cuando compartan material en la biblioteca.</p>
       {loading && !data ? (

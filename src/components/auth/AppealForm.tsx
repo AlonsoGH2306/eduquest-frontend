@@ -45,7 +45,7 @@ export const AppealForm: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        className="mt-6 inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
       >
         <MessageSquareWarning size={15} /> ¿Crees que es un error? Apelar
       </button>
@@ -107,7 +107,7 @@ export const AppealForm: React.FC = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           <Send size={14} /> {isSubmitting ? 'Enviando...' : 'Enviar apelación'}
         </button>
