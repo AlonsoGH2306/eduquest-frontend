@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Link, Outlet, matchPath, useLocation } from 'react-router-dom';
 import { BookOpen, Menu, X } from 'lucide-react';
 import { Spinner } from '../common/Spinner';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { EmailVerificationBanner } from '../auth/EmailVerificationBanner';
 import { OfflineBanner } from './OfflineBanner';
 import { ServerRail } from './ServerRail';
@@ -70,16 +71,20 @@ export const AppShell: React.FC = () => {
         <EmailVerificationBanner />
         {immersive ? (
           <main id="contenido" className="min-h-0 flex-1 overflow-hidden">
-            <Suspense fallback={<Spinner label="Cargando..." />}>
-              <Outlet />
-            </Suspense>
+            <ErrorBoundary resetKey={pathname} variant="page">
+              <Suspense fallback={<Spinner label="Cargando..." />}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
           </main>
         ) : (
           <main ref={mainRef} id="contenido" className="eq-scroll min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-8">
-              <Suspense fallback={<Spinner label="Cargando..." />}>
-                <Outlet />
-              </Suspense>
+              <ErrorBoundary resetKey={pathname} variant="page">
+                <Suspense fallback={<Spinner label="Cargando..." />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
             </div>
           </main>
         )}
