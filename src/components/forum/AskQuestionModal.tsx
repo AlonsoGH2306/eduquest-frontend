@@ -76,7 +76,7 @@ export const AskQuestionModal: React.FC<AskQuestionModalProps> = ({ isOpen, onCl
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
           >
             {isSubmitting ? 'Publicando...' : 'Publicar pregunta'}
           </button>

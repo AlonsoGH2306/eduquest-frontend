@@ -40,5 +40,12 @@ export function useFetch<T>(fetcher: (signal: AbortSignal) => Promise<T>, option
 
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
-  return { data, setData, loading, error, errorStatus, reload };
+  const refresh = useCallback(() => {
+    if (!enabled) return;
+    fetcher(new AbortController().signal)
+      .then(setData)
+      .catch(() => undefined);
+  }, [fetcher, enabled]);
+
+  return { data, setData, loading, error, errorStatus, reload, refresh };
 }

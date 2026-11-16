@@ -6,7 +6,7 @@ type PageFetcher<T> = (page: number, size: number, signal: AbortSignal) => Promi
 
 export function usePaginatedFetch<T>(fetchPage: PageFetcher<T>, page: number, size: number, enabled = true) {
   const fetcher = useCallback((signal: AbortSignal) => fetchPage(page, size, signal), [fetchPage, page, size]);
-  const { data, setData, loading, error, errorStatus, reload } = useFetch(fetcher, { enabled });
+  const { data, setData, loading, error, errorStatus, reload, refresh } = useFetch(fetcher, { enabled });
 
   const setItems = useCallback(
     (update: (items: T[]) => T[]) =>
@@ -22,6 +22,7 @@ export function usePaginatedFetch<T>(fetchPage: PageFetcher<T>, page: number, si
     error,
     errorStatus,
     reload,
+    refresh,
     setItems,
   };
 }

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { CheckCircle2, GraduationCap, MessagesSquare, Plus, Search } from 'lucide-react';
 import { forumService } from '../services/forumService';
 import { usePaginatedFetch } from '../hooks/usePaginatedFetch';
+import { useRealtimeEvents } from '../hooks/useRealtime';
 import { usePageParams } from '../hooks/usePageParams';
 import { useDebounce } from '../hooks/useDebounce';
 import { ForumFilter } from '../types';
@@ -47,7 +48,11 @@ export const ForumPage: React.FC = () => {
       ),
     [debouncedSearch, debouncedCourse, filter]
   );
-  const { items, totalElements, totalPages, loading, error, reload } = usePaginatedFetch(fetchPage, page, size);
+  const { items, totalElements, totalPages, loading, error, reload, refresh } = usePaginatedFetch(fetchPage, page, size);
+
+  useRealtimeEvents((event) => {
+    if (event.type === 'forum') refresh();
+  });
 
   const ask = async (values: AskValues) => {
     try {
@@ -71,7 +76,7 @@ export const ForumPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setAsking(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
         >
           <Plus size={16} /> Hacer una pregunta
         </button>
@@ -139,7 +144,7 @@ export const ForumPage: React.FC = () => {
               <li key={question.id}>
                 <Link
                   to={`/forum/${question.id}`}
-                  className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition hover:border-indigo-200 hover:shadow-md"
+                  className="flex gap-4 rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-indigo-200 hover:shadow-md"
                 >
                   <div
                     className={`flex w-16 shrink-0 flex-col items-center justify-center rounded-xl text-center ${

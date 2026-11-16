@@ -16,6 +16,7 @@ export type RealtimeEvent =
   | { type: 'room.updated'; roomId: number }
   | { type: 'direct.message'; action: 'created' | 'updated' | 'deleted'; senderId: number; recipientId: number; message: unknown }
   | { type: 'typing'; userId: number; username: string; groupId?: number }
+  | { type: 'forum'; questionId: number | null }
   | { type: 'pong' };
 
 type Listener = (event: RealtimeEvent) => void;

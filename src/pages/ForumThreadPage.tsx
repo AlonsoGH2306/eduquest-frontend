@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { CheckCircle2, ChevronDown, ChevronUp, Send, Trash2 } from 'lucide-react';
 import { forumService } from '../services/forumService';
 import { useFetch } from '../hooks/useFetch';
+import { useRealtimeEvents } from '../hooks/useRealtime';
 import { ForumAnswer } from '../types';
 import { extractErrorMessage } from '../utils/errors';
 import { timeAgo } from '../utils/relativeTime';
+import { inputClass } from '../utils/forms';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { ErrorState } from '../components/common/ErrorState';
 import { Spinner } from '../components/common/Spinner';
@@ -18,9 +20,13 @@ export const ForumThreadPage: React.FC = () => {
   const { questionId } = useParams();
   const id = Number(questionId);
   const navigate = useNavigate();
-  const { data, setData, loading, error, reload } = useFetch(
+  const { data, setData, loading, error, reload, refresh } = useFetch(
     useCallback((signal: AbortSignal) => forumService.getThread(id, signal), [id])
   );
+
+  useRealtimeEvents((event) => {
+    if (event.type === 'forum' && event.questionId === id) refresh();
+  });
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [toDelete, setToDelete] = useState<{ kind: 'question' } | { kind: 'answer'; answer: ForumAnswer } | null>(null);
@@ -103,7 +109,7 @@ export const ForumThreadPage: React.FC = () => {
     <div className="mx-auto max-w-3xl">
       <Breadcrumbs items={[{ label: 'Foro', to: '/forum' }, { label: question.title }]} />
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+      <article className="rounded-3xl border border-slate-200 bg-white p-6">
         <div className="flex items-start justify-between gap-3">
           <h1 className="text-xl font-bold text-slate-900">{question.title}</h1>
           {question.canDelete && (
@@ -132,46 +138,63 @@ export const ForumThreadPage: React.FC = () => {
             </span>
           )}
         </div>
-        <p className="mt-4 text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{question.body}</p>
+        <p className="mt-4 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-slate-700">{question.body}</p>
       </article>
 
-      <h2 className="mt-8 mb-3 text-base font-bold text-slate-900">
-        {answers.length === 0 ? 'Aún no hay respuestas' : `${answers.length} ${answers.length === 1 ? 'respuesta' : 'respuestas'}`}
-      </h2>
+      <div className="mt-8 mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-base font-bold text-slate-900">
+          {answers.length === 0 ? 'Aún no hay respuestas' : `${answers.length} ${answers.length === 1 ? 'respuesta' : 'respuestas'}`}
+        </h2>
+        {answers.length > 0 && (
+          <p className="text-xs text-slate-500">Vota con ▲ si una respuesta te sirvió y con ▼ si no; las mejores suben.</p>
+        )}
+      </div>
 
       <ul className="space-y-3">
         {answers.map((answer) => (
           <li
             key={answer.id}
-            className={`flex gap-4 rounded-2xl border bg-white p-5 shadow-xs ${
+            className={`flex gap-4 rounded-3xl border bg-white p-5 ${
               answer.accepted ? 'border-emerald-300' : 'border-slate-200'
             }`}
           >
-            <div className="flex shrink-0 flex-col items-center">
+            <div
+              className="flex shrink-0 flex-col items-center self-start rounded-full bg-slate-50 p-1"
+              title={answer.mine ? 'No puedes votar tu propia respuesta' : undefined}
+            >
               <button
                 type="button"
                 disabled={answer.mine}
                 onClick={() => vote(answer, 1)}
-                aria-label="Útil"
+                aria-label="Me sirvió"
+                title={answer.mine ? undefined : 'Me sirvió'}
                 aria-pressed={answer.myVote === 1}
-                className={`rounded-lg p-1 transition disabled:opacity-30 ${
-                  answer.myVote === 1 ? 'text-indigo-600' : 'text-slate-400 hover:bg-slate-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:opacity-30 ${
+                  answer.myVote === 1 ? 'bg-mint text-noche' : 'text-slate-500 hover:bg-slate-100 hover:text-mint-ink'
                 }`}
               >
-                <ChevronUp size={20} />
+                <ChevronUp size={18} strokeWidth={2.5} />
               </button>
-              <span className="text-sm font-bold text-slate-800">{answer.score}</span>
+              <span
+                className={`py-0.5 text-sm font-extrabold ${
+                  answer.score > 0 ? 'text-mint-ink' : answer.score < 0 ? 'text-chicle-ink' : 'text-slate-600'
+                }`}
+                aria-label={`Puntaje ${answer.score}`}
+              >
+                {answer.score}
+              </span>
               <button
                 type="button"
                 disabled={answer.mine}
                 onClick={() => vote(answer, -1)}
-                aria-label="No útil"
+                aria-label="No me sirvió"
+                title={answer.mine ? undefined : 'No me sirvió'}
                 aria-pressed={answer.myVote === -1}
-                className={`rounded-lg p-1 transition disabled:opacity-30 ${
-                  answer.myVote === -1 ? 'text-red-600' : 'text-slate-400 hover:bg-slate-100'
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition disabled:opacity-30 ${
+                  answer.myVote === -1 ? 'bg-chicle text-noche' : 'text-slate-500 hover:bg-slate-100 hover:text-chicle-ink'
                 }`}
               >
-                <ChevronDown size={20} />
+                <ChevronDown size={18} strokeWidth={2.5} />
               </button>
             </div>
             <div className="min-w-0 flex-1">
@@ -180,7 +203,7 @@ export const ForumThreadPage: React.FC = () => {
                   <CheckCircle2 size={12} /> Mejor respuesta
                 </p>
               )}
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{answer.body}</p>
+              <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap text-slate-700">{answer.body}</p>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                 <Link to={`/users/${answer.author.id}`} className="inline-flex items-center gap-1.5 hover:text-indigo-600">
                   <UserAvatar username={answer.author.username} avatarUrl={answer.author.avatarUrl} size={18} />
@@ -217,7 +240,7 @@ export const ForumThreadPage: React.FC = () => {
         ))}
       </ul>
 
-      <form onSubmit={send} className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <form onSubmit={send} className="mt-6 rounded-3xl border border-slate-200 bg-white p-4">
         <label htmlFor="forum-reply" className="text-sm font-semibold text-slate-800">
           Tu respuesta
         </label>
@@ -228,13 +251,13 @@ export const ForumThreadPage: React.FC = () => {
           value={reply}
           onChange={(event) => setReply(event.target.value)}
           placeholder="Explica paso a paso; si puedes, agrega un ejemplo."
-          className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-indigo-500 focus:outline-hidden"
+          className={`${inputClass(false)} resize-y`}
         />
         <div className="mt-2 flex justify-end">
           <button
             type="submit"
             disabled={sending || reply.trim().length < 2}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             <Send size={15} /> {sending ? 'Publicando...' : 'Responder'}
           </button>
