@@ -51,7 +51,9 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const savedDraft = useRef('');
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const contextKey = context ? `${context.mode}:${context.messageId}` : null;
   const initialText = context?.mode === 'edit' ? (context.initialText ?? '') : null;
   const editing = context?.mode === 'edit';

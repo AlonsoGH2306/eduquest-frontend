@@ -53,17 +53,16 @@ export const MessagesPage: React.FC = () => {
     return pinDiff !== 0 ? pinDiff : new Date(b.at).getTime() - new Date(a.at).getTime();
   });
 
+  const { refresh: refreshCounters } = useNotifications();
+
   const handleRoomRead = useCallback(() => {
     if (roomId === null) return;
     clearRoomUnread(roomId);
     roomService
       .markRead(roomId)
-      .then(refreshCountersRef.current)
+      .then(refreshCounters)
       .catch(() => undefined);
-  }, [roomId, clearRoomUnread]);
-  const { refresh: refreshCounters } = useNotifications();
-  const refreshCountersRef = React.useRef(refreshCounters);
-  refreshCountersRef.current = refreshCounters;
+  }, [roomId, clearRoomUnread, refreshCounters]);
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 300);

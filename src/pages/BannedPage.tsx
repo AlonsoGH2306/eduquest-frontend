@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CalendarClock, CheckCircle2, UserX } from 'lucide-react';
 import { BAN_STORAGE_KEY } from '../services/axiosInstance';
@@ -22,7 +22,7 @@ const readBanInfo = (): BanInfo | null => {
 
 export const BannedPage: React.FC = () => {
   const navigate = useNavigate();
-  const info = useMemo(readBanInfo, []);
+  const [info] = useState(readBanInfo);
 
   const goBack = () => {
     sessionStorage.removeItem(BAN_STORAGE_KEY);

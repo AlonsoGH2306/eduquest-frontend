@@ -6,7 +6,9 @@ const TYPING_SEND_EVERY_MS = 2500;
 
 export function useRealtimeEvents(handler: (event: RealtimeEvent) => void, enabled = true) {
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -24,7 +26,9 @@ export function useTyping(target: { groupId: number } | { userId: number } | nul
   const [typing, setTyping] = useState<Record<number, { username: string; until: number }>>({});
   const lastSent = useRef(0);
   const targetRef = useRef(target);
-  targetRef.current = target;
+  useEffect(() => {
+    targetRef.current = target;
+  }, [target]);
   const key = target ? ('groupId' in target ? `g${target.groupId}` : `u${target.userId}`) : null;
 
   useRealtimeEvents((event) => {

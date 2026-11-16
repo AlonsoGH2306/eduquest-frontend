@@ -7,11 +7,11 @@ interface FileAttachmentProps {
   mine: boolean;
 }
 
-const iconFor = (name: string) => {
+const FileIcon: React.FC<{ name: string }> = ({ name }) => {
   const extension = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['xls', 'xlsx'].includes(extension)) return FileSpreadsheet;
-  if (['ppt', 'pptx'].includes(extension)) return Presentation;
-  return FileText;
+  if (['xls', 'xlsx'].includes(extension)) return <FileSpreadsheet size={18} />;
+  if (['ppt', 'pptx'].includes(extension)) return <Presentation size={18} />;
+  return <FileText size={18} />;
 };
 
 export const isVideoFile = (name: string) => /\.(mp4|webm|mov)$/i.test(name);
@@ -29,7 +29,6 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ url, name, mine 
       />
     );
   }
-  const Icon = iconFor(name);
   const extension = name.includes('.') ? name.split('.').pop()?.toUpperCase() : 'ARCHIVO';
   return (
     <a
@@ -41,7 +40,7 @@ export const FileAttachment: React.FC<FileAttachmentProps> = ({ url, name, mine 
       }`}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
-        <Icon size={18} />
+        <FileIcon name={name} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-slate-800">{name}</span>

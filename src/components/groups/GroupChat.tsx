@@ -102,15 +102,15 @@ export const GroupChat: React.FC<GroupChatProps> = ({
   useEffect(() => {
     stickToBottom.current = true;
     setPanel((current) => (current?.kind === 'search' ? current : null));
-  }, [groupId, activeChannel?.id]);
+  }, [groupId, activeChannelId]);
 
   useEffect(() => {
     if (!loading && !error) onSeen?.();
   }, [lastMessageId, loading, error, onSeen]);
 
   useEffect(() => {
-    if (!loading && !error && activeChannel) markRead(activeChannel.id);
-  }, [lastMessageId, loading, error, activeChannel?.id, markRead]);
+    if (!loading && !error && activeChannelId !== null) markRead(activeChannelId);
+  }, [lastMessageId, loading, error, activeChannelId, markRead]);
 
   const { loadAround } = chat;
   const { jumpTo } = actions;
