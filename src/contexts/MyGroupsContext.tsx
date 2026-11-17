@@ -1,7 +1,9 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { groupService } from '../services/groupService';
 import { GroupResponse } from '../types';
 import { extractErrorMessage, isCanceledError } from '../utils/errors';
+import { useRealtimeEvents } from '../hooks/useRealtime';
+import { useAuth } from '../hooks/useAuth';
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -41,6 +43,18 @@ export const MyGroupsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [reloadKey]);
 
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const { user } = useAuth();
+  const pending = useRef<number | null>(null);
+
+  useRealtimeEvents((event) => {
+    if (event.type !== 'group.message' || event.action !== 'created') return;
+    if ((event.message as { authorId?: number }).authorId === user?.id) return;
+    if (pending.current !== null) window.clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => {
+      pending.current = null;
+      refresh();
+    }, 1500);
+  }, Boolean(user));
 
   useEffect(() => {
     const interval = window.setInterval(refresh, REFRESH_INTERVAL_MS);

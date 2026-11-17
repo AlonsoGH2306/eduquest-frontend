@@ -8,13 +8,14 @@ interface CalendarSession {
   title: string;
   description: string | null;
   scheduledAt: string;
+  endsAt?: string | null;
   meetingUrl: string | null;
   groupName: string | null;
 }
 
 export const buildGoogleCalendarUrl = (session: CalendarSession, durationMinutes = 60) => {
   const start = new Date(session.scheduledAt);
-  const end = new Date(start.getTime() + durationMinutes * 60_000);
+  const end = session.endsAt ? new Date(session.endsAt) : new Date(start.getTime() + durationMinutes * 60_000);
   const details = [
     session.description,
     session.groupName ? `Grupo de estudio: ${session.groupName}` : null,

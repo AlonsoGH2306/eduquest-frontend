@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Eye, ShieldCheck, UserCheck, Users, UserX } from 'lucide-react';
+import { TriangleAlert, UserCheck, Users, UserX } from 'lucide-react';
 import { UserResponse } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useAdminUsers } from '../hooks/useAdminUsers';
 import { usePageParams } from '../hooks/usePageParams';
 import { extractErrorMessage } from '../utils/errors';
 import { primaryRole, ROLE_OPTIONS, roleLabel } from '../utils/roles';
-import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { PaginationBar } from '../components/common/PaginationBar';
@@ -15,7 +14,9 @@ import { Spinner } from '../components/common/Spinner';
 import { ConfirmModal } from '../components/common/ConfirmModal';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { BanUserModal } from '../components/admin/BanUserModal';
-import { AdminTabs } from '../components/admin/AdminTabs';
+import { WarnUserModal } from '../components/admin/WarnUserModal';
+import { adminService } from '../services/adminService';
+import { AdminHeader } from '../components/admin/AdminHeader';
 
 export const AdminUsersPage: React.FC = () => {
   const { user: currentUser, isAdmin } = useAuth();
@@ -28,10 +29,16 @@ export const AdminUsersPage: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [toBan, setToBan] = useState<UserResponse | null>(null);
   const [toUnban, setToUnban] = useState<UserResponse | null>(null);
+  const [toWarn, setToWarn] = useState<UserResponse | null>(null);
   const [moderating, setModerating] = useState(false);
 
   const canModerate = (user: UserResponse) =>
-    isAdmin && user.id !== currentUser?.id && !user.roles.includes('ROLE_ADMIN');
+    user.id !== currentUser?.id &&
+    !user.roles.includes('ROLE_ADMIN') &&
+    (isAdmin || !user.roles.includes('ROLE_MANAGER'));
+
+  const formatUntil = (value: string) =>
+    new Date(value).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const handleRoleChange = async (user: UserResponse, role: string) => {
     if (primaryRole(user.roles) === role) return;
@@ -46,11 +53,26 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
-  const handleBan = async (user: UserResponse, reason: string) => {
+  const handleWarn = async (user: UserResponse, message: string) => {
     setModerating(true);
     try {
-      await banUser(user.id, reason);
-      toast.success(`@${user.username} fue vetado`);
+      await adminService.warnUser(user.id, message);
+      toast.success(`Advertencia enviada a @${user.username}`);
+      setToWarn(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setModerating(false);
+    }
+  };
+
+  const handleBan = async (user: UserResponse, reason: string, days: number | null) => {
+    setModerating(true);
+    try {
+      await banUser(user.id, reason, days);
+      toast.success(
+        days === null ? `@${user.username} fue vetado` : `@${user.username} quedó suspendido ${days} ${days === 1 ? 'día' : 'días'}`
+      );
       setToBan(null);
     } catch (err) {
       toast.error(extractErrorMessage(err));
@@ -81,7 +103,7 @@ export const AdminUsersPage: React.FC = () => {
     }
     return (
       <>
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-xs">
+        <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
               <tr>
@@ -132,7 +154,7 @@ export const AdminUsersPage: React.FC = () => {
                           title={user.banReason ?? undefined}
                           className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700"
                         >
-                          Vetado
+                          {user.bannedUntil ? `Suspendido hasta ${formatUntil(user.bannedUntil)}` : 'Vetado'}
                         </span>
                       ) : (
                         <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -151,16 +173,25 @@ export const AdminUsersPage: React.FC = () => {
                             onClick={() => setToUnban(user)}
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
                           >
-                            <UserCheck size={13} /> Quitar veto
+                            <UserCheck size={13} /> {user.bannedUntil ? 'Levantar suspensión' : 'Quitar veto'}
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setToBan(user)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-800"
-                          >
-                            <UserX size={13} /> Vetar
-                          </button>
+                          <span className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setToWarn(user)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 hover:text-amber-800"
+                            >
+                              <TriangleAlert size={13} /> Advertir
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setToBan(user)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-red-800"
+                            >
+                              <UserX size={13} /> Suspender
+                            </button>
+                          </span>
                         ))}
                     </div>
                   </td>
@@ -184,35 +215,39 @@ export const AdminUsersPage: React.FC = () => {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Administración de usuarios' }]} />
-
-      <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-            <ShieldCheck size={24} className="text-indigo-600" /> Administración de usuarios
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {isAdmin
-              ? 'Consulta las cuentas registradas, actualiza su rol y veta a quienes incumplan las normas.'
-              : 'Como gestor puedes consultar las cuentas. Solo un administrador cambia roles o veta usuarios.'}
-          </p>
-        </div>
-        <span className="hidden items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 sm:inline-flex">
-          {isAdmin ? <Users size={15} /> : <Eye size={15} />} {totalElements} usuarios
-        </span>
-      </div>
-
-      <AdminTabs />
+      <AdminHeader
+        section="Usuarios"
+        title="Usuarios"
+        description={
+          isAdmin
+            ? 'Consulta las cuentas registradas, actualiza su rol y veta a quienes incumplan las normas.'
+            : 'Como gestor puedes advertir y suspender estudiantes hasta 7 días. Solo un administrador cambia roles o veta para siempre.'
+        }
+        icon={<Users size={24} />}
+        aside={
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-sm font-semibold text-white">
+            <Users size={15} /> {totalElements} usuarios
+          </span>
+        }
+      />
 
       {renderTable()}
 
-      <BanUserModal user={toBan} saving={moderating} onConfirm={handleBan} onClose={() => setToBan(null)} />
+      <BanUserModal
+        user={toBan}
+        saving={moderating}
+        allowPermanent={isAdmin}
+        onConfirm={handleBan}
+        onClose={() => setToBan(null)}
+      />
+
+      <WarnUserModal user={toWarn} saving={moderating} onConfirm={handleWarn} onClose={() => setToWarn(null)} />
 
       <ConfirmModal
         isOpen={toUnban !== null}
-        title={`Quitar el veto a @${toUnban?.username ?? ''}`}
+        title={`Devolver el acceso a @${toUnban?.username ?? ''}`}
         message="Podrá volver a iniciar sesión y usar EduQuest con normalidad."
-        confirmLabel="Quitar veto"
+        confirmLabel="Devolver acceso"
         loadingLabel="Guardando..."
         loading={moderating}
         icon={<UserCheck size={14} />}

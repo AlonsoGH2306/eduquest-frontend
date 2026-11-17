@@ -1,79 +1,101 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, FileText, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
+import { ArrowRight, FileText, Sparkles, Trophy } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { formatDateTime } from '../utils/formatDate';
-import { StatCard } from '../components/dashboard/StatCard';
+import { NightHero } from '../components/dashboard/NightHero';
+import { LiveNow } from '../components/dashboard/LiveNow';
+import { GroupTiles } from '../components/dashboard/GroupTiles';
+import { useLiveActivity } from '../hooks/useLiveActivity';
 import { ErrorState } from '../components/common/ErrorState';
 import { EmptyState } from '../components/common/EmptyState';
 import { LeaderboardList } from '../components/achievements/LeaderboardList';
 import { useLeaderboard } from '../hooks/useAchievements';
+import { DocumentPreviewModal } from '../components/documents/DocumentPreviewModal';
+import { DocumentResponse } from '../types';
+import { useMyGroups } from '../hooks/useMyGroups';
+
+const DATE_FORMAT = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
 
 export const DashboardPage: React.FC = () => {
   const { user, canManageUsers } = useAuth();
   const { stats, loading, error, reload } = useDashboardStats();
   const leaderboard = useLeaderboard('week');
   const value = (count?: number) => (loading ? null : (count ?? 0));
+  const [previewing, setPreviewing] = useState<DocumentResponse | null>(null);
+  const { groups } = useMyGroups();
+  const today = DATE_FORMAT.format(new Date());
+  const live = useLiveActivity(groups);
+  const firstRoom = live.studyRooms[0];
+  const heroMessage =
+    live.peopleStudying > 0
+      ? `Ahora mismo ${live.peopleStudying === 1 ? 'hay 1 persona estudiando' : `hay ${live.peopleStudying} personas estudiando`} en tus grupos. Súmate y no estudies solo.`
+      : 'Tus grupos están en calma. Repasa un apunte, arma tu plan de la semana o enciende la primera luz en una sala de estudio.';
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-3xl bg-linear-to-r from-indigo-600 to-violet-600 p-8 text-white shadow-md">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-xs">
-              <ShieldCheck size={14} /> Plataforma académica colaborativa
-            </span>
-            <h1 className="mt-3 text-2xl font-bold sm:text-3xl">¡Hola, {user?.username}! 👋</h1>
-            <p className="mt-1 max-w-xl text-sm text-indigo-100">
-              Explora apuntes de la comunidad, colabora en grupos de estudio y genera planes de estudio a tu medida.
-            </p>
-          </div>
-          <Link
-            to="/study-planner"
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-indigo-700 shadow-xs transition hover:bg-indigo-50"
-          >
-            <Sparkles size={16} /> Generar plan de estudio
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-10">
+      <NightHero
+        dateLabel={today}
+        username={user?.username ?? ''}
+        message={heroMessage}
+        primary={
+          firstRoom
+            ? { to: `/groups/${firstRoom.group.id}`, label: 'Entrar a la sala de estudio' }
+            : { to: '/study-planner', label: 'Generar mi plan de estudio' }
+        }
+        secondary={{ to: '/documents', label: 'Ir a la biblioteca' }}
+        lively={live.peopleStudying > 0}
+        stats={[
+          { label: 'apuntes en la biblioteca', value: value(stats?.documents) },
+          { label: 'grupos de estudio', value: value(stats?.groups) },
+          { label: 'planes que generaste', value: value(stats?.plans) },
+        ]}
+      />
+
+      <LiveNow studyRooms={live.studyRooms} voiceRooms={live.voiceRooms} sessions={live.sessions} loading={live.loading} />
+
+      <GroupTiles groups={groups} />
 
       {error ? (
         <ErrorState title="No pudimos cargar tu resumen" message={error} onRetry={reload} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <StatCard
-              label="Documentos públicos"
-              value={value(stats?.documents)}
-              icon={<FileText size={20} />}
-              to="/documents"
-              linkLabel="Ir a la biblioteca"
-              accent="indigo"
-            />
-            <StatCard
-              label="Grupos disponibles"
-              value={value(stats?.groups)}
-              icon={<Users size={20} />}
-              to="/groups"
-              linkLabel="Explorar grupos"
-              accent="emerald"
-            />
-            <StatCard
-              label="Mis planes de estudio"
-              value={value(stats?.plans)}
-              icon={<Sparkles size={20} />}
-              to="/study-planner"
-              linkLabel="Ver mi historial"
-              accent="violet"
-            />
-          </div>
+          {stats && stats.featuredDocuments.length > 0 && (
+            <section className="rounded-2xl bg-raised p-6">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900">
+                <Sparkles size={20} className="text-lumi-ink" /> Destacados por la comunidad
+              </h2>
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {stats.featuredDocuments.map((doc) => (
+                  <li key={doc.id}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewing(doc)}
+                      className="flex w-full items-center gap-3 rounded-xl bg-slate-50 p-3 text-left transition hover:bg-slate-100"
+                    >
+                      <span className="rounded-lg bg-lumi p-2 text-noche">
+                        <FileText size={16} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold text-slate-800">{doc.title}</span>
+                        <span className="block truncate text-xs text-slate-500">
+                          @{doc.authorUsername}
+                          {doc.course ? ` · ${doc.course}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:col-span-2">
+            <section className="rounded-2xl bg-raised p-6 lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-slate-900">Recién subido</h2>
-                <Link to="/documents" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                <h2 className="text-xl font-bold text-slate-900">Recién subido</h2>
+                <Link to="/documents" className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-500 hover:underline">
                   Ver todo <ArrowRight size={13} />
                 </Link>
               </div>
@@ -87,7 +109,7 @@ export const DashboardPage: React.FC = () => {
                 <ul className="divide-y divide-slate-100">
                   {stats.recentDocuments.map((doc) => (
                     <li key={doc.id} className="flex items-center gap-3 py-3">
-                      <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                      <div className="rounded-lg bg-celeste p-2 text-noche">
                         <FileText size={16} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -96,14 +118,13 @@ export const DashboardPage: React.FC = () => {
                           @{doc.authorUsername} · {formatDateTime(doc.uploadedAt)}
                         </p>
                       </div>
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => setPreviewing(doc)}
                         className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
                       >
                         Abrir
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -115,12 +136,12 @@ export const DashboardPage: React.FC = () => {
               )}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs">
+            <section className="rounded-2xl bg-raised p-6">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-1.5 text-base font-bold text-slate-900">
-                  <Trophy size={16} className="text-amber-500" /> Top de la semana
+                <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900">
+                  <Trophy size={20} className="text-lumi-ink" /> Top de la semana
                 </h2>
-                <Link to="/achievements" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
+                <Link to="/achievements" className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-500 hover:underline">
                   Mis logros <ArrowRight size={13} />
                 </Link>
               </div>
@@ -144,9 +165,10 @@ export const DashboardPage: React.FC = () => {
 
       {canManageUsers && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 text-xs text-amber-900">
-          Tienes acceso a la administración de usuarios. Encuéntrala en la pestaña <strong>Usuarios</strong> de la barra superior.
+          Tienes acceso a la administración de usuarios. Encuéntrala en <strong>Administración</strong>, en la barra lateral.
         </div>
       )}
+      <DocumentPreviewModal document={previewing} onClose={() => setPreviewing(null)} />
     </div>
   );
 };

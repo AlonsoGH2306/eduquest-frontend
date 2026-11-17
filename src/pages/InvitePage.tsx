@@ -72,7 +72,9 @@ export const InvitePage: React.FC = () => {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
           <MailOpen size={28} />
         </div>
-        <p className="text-sm text-slate-500">@{group.creatorUsername} te invita a</p>
+        <p className="text-sm text-slate-500">
+          {group.creatorUsername ? `@${group.creatorUsername} te invita a` : 'Te invitaron a'}
+        </p>
         <h1 className="mt-1 text-2xl font-bold text-slate-900">{group.name}</h1>
         {group.description && <p className="mt-2 text-sm text-slate-600">{group.description}</p>}
         <div className="mt-4 flex items-center justify-center gap-3 text-xs text-slate-500">
@@ -86,7 +88,7 @@ export const InvitePage: React.FC = () => {
           <button
             type="button"
             onClick={() => goToGroup(group)}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
           >
             Ya eres miembro · Ir al grupo <ArrowRight size={16} />
           </button>
@@ -96,7 +98,7 @@ export const InvitePage: React.FC = () => {
               type="button"
               onClick={accept}
               disabled={joining}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               <UserPlus size={16} /> {joining ? 'Uniéndote...' : 'Aceptar invitación'}
             </button>

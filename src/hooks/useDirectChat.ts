@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messageService } from '../services/messageService';
-import { DirectMessage } from '../types';
+import { ChatAttachment, DirectMessage } from '../types';
 import { extractErrorMessage, isCanceledError } from '../utils/errors';
+import { mergeById, replaceMessage } from '../utils/chatMessages';
+import { useAuth } from './useAuth';
+import { useRealtimeConnected, useRealtimeEvents, useTyping } from './useRealtime';
 
 const POLL_INTERVAL_MS = 4000;
+const CONNECTED_POLL_INTERVAL_MS = 30000;
 const PAGE_SIZE = 50;
 
-const mergeById = (current: DirectMessage[], incoming: DirectMessage[]) => {
-  const known = new Set(current.map((message) => message.id));
-  return [...current, ...incoming.filter((message) => !known.has(message.id))];
-};
-
 export function useDirectChat(userId: number | null) {
+  const { user } = useAuth();
+  const myId = user?.id;
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const lastIdRef = useRef<number | null>(null);
+  const connected = useRealtimeConnected();
+  const { typingNames, notifyTyping, clearSelf } = useTyping(userId === null ? null : { userId });
 
   useEffect(() => {
     lastIdRef.current = messages.length > 0 ? messages[messages.length - 1].id : null;
@@ -54,15 +57,47 @@ export function useDirectChat(userId: number | null) {
         .then((data) => setMessages((current) => mergeById(current, data)))
         .catch(() => undefined);
     };
-    const interval = window.setInterval(poll, POLL_INTERVAL_MS);
+    const interval = window.setInterval(poll, connected ? CONNECTED_POLL_INTERVAL_MS : POLL_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [userId]);
+  }, [userId, connected]);
+
+  useRealtimeEvents((event) => {
+    if (event.type !== 'direct.message' || userId === null) return;
+    const partnerId = event.senderId === myId ? event.recipientId : event.senderId;
+    if (partnerId !== userId) return;
+    const message = { ...(event.message as DirectMessage) };
+    message.mine = message.senderId === myId;
+    if (event.action === 'created') {
+      clearSelf(message.senderId);
+      setMessages((current) => mergeById(current, [message]));
+    } else {
+      setMessages((current) => replaceMessage(current, message));
+    }
+  }, userId !== null);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, attachment?: ChatAttachment, replyToId?: number) => {
       if (userId === null) return;
-      const sent = await messageService.sendMessage(userId, content);
+      const sent = await messageService.sendMessage(userId, { content, ...attachment, replyToId });
       setMessages((current) => mergeById(current, [sent]));
+    },
+    [userId]
+  );
+
+  const editMessage = useCallback(
+    async (messageId: number, content: string) => {
+      if (userId === null) return;
+      const updated = await messageService.editMessage(userId, messageId, content);
+      setMessages((current) => replaceMessage(current, updated));
+    },
+    [userId]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId: number) => {
+      if (userId === null) return;
+      const deleted = await messageService.deleteMessage(userId, messageId);
+      setMessages((current) => replaceMessage(current, deleted));
     },
     [userId]
   );
@@ -79,5 +114,17 @@ export function useDirectChat(userId: number | null) {
     }
   }, [userId, messages]);
 
-  return { messages, loading, error, hasOlder, loadingOlder, sendMessage, loadOlder };
+  return {
+    messages,
+    loading,
+    error,
+    hasOlder,
+    loadingOlder,
+    typingNames,
+    notifyTyping,
+    sendMessage,
+    editMessage,
+    deleteMessage,
+    loadOlder,
+  };
 }

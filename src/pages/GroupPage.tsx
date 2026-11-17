@@ -18,6 +18,7 @@ import { TabButton } from '../components/common/TabButton';
 import { UnreadBadge } from '../components/common/UnreadBadge';
 import { GroupCard } from '../components/groups/GroupCard';
 import { MyGroupRow } from '../components/groups/MyGroupRow';
+import { usePinnedChats } from '../hooks/usePinnedChats';
 import { CreateGroupModal } from '../components/groups/CreateGroupModal';
 import { JoinPrivateGroupModal } from '../components/groups/JoinPrivateGroupModal';
 
@@ -33,6 +34,7 @@ export const GroupsPage: React.FC = () => {
   const debouncedSearch = useDebounce(searchInput.trim(), 400);
 
   const myGroups = useMyGroups();
+  const { isPinned, togglePin, sortPinnedFirst } = usePinnedChats();
   const { groups, totalElements, totalPages, loading, error, reload, createGroup, joinGroup } = useGroups(
     page,
     size,
@@ -100,8 +102,13 @@ export const GroupsPage: React.FC = () => {
     }
     return (
       <div className="space-y-3">
-        {myGroups.groups.map((group) => (
-          <MyGroupRow key={group.id} group={group} />
+        {sortPinnedFirst(myGroups.groups, 'GROUP', (group) => group.id).map((group) => (
+          <MyGroupRow
+            key={group.id}
+            group={group}
+            pinned={isPinned('GROUP', group.id)}
+            onTogglePin={() => void togglePin('GROUP', group.id)}
+          />
         ))}
       </div>
     );
@@ -203,13 +210,13 @@ export const GroupsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
         >
           <Plus size={16} /> Crear grupo
         </button>
       </div>
 
-      <div role="tablist" className="mb-6 flex gap-2 border-b border-slate-200">
+      <div role="tablist" className="mb-6 flex w-fit flex-wrap items-center rounded-full bg-slate-100 p-1 gap-2">
         <TabButton
           active={view === 'mine'}
           onClick={() => changeView('mine')}

@@ -32,9 +32,14 @@ axiosInstance.interceptors.request.use((config) => {
 
 const readBanInfo = (error: unknown): BanInfo | null => {
   if (!axios.isAxiosError(error) || error.response?.status !== 403) return null;
-  const data = error.response.data as { code?: string; banReason?: string | null; bannedAt?: string | null };
+  const data = error.response.data as {
+    code?: string;
+    banReason?: string | null;
+    bannedAt?: string | null;
+    bannedUntil?: string | null;
+  };
   if (data?.code !== 'USER_BANNED') return null;
-  return { reason: data.banReason ?? null, bannedAt: data.bannedAt ?? null };
+  return { reason: data.banReason ?? null, bannedAt: data.bannedAt ?? null, bannedUntil: data.bannedUntil ?? null };
 };
 
 const redirectIfBanned = (error: unknown): boolean => {

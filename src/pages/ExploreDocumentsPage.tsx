@@ -133,13 +133,13 @@ export const ExploreDocumentsPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsUploadOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
         >
           <Plus size={16} /> Subir documento
         </button>
       </div>
 
-      <div role="tablist" className="mb-4 flex gap-1 border-b border-slate-200">
+      <div role="tablist" className="mb-4 flex w-fit flex-wrap items-center rounded-full bg-slate-100 p-1 gap-1">
         <TabButton
           active={view === 'all'}
           icon={<Library size={14} />}
@@ -155,7 +155,7 @@ export const ExploreDocumentsPage: React.FC = () => {
       </div>
 
       {view === 'all' && (
-        <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="mb-6 space-y-3 rounded-3xl border border-slate-200 bg-white p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" />
@@ -255,6 +255,7 @@ export const ExploreDocumentsPage: React.FC = () => {
                 onOpenReviews={(d) => setSelectedDocForReview(d)}
                 onTagClick={handleTagFilter}
                 onSavedChange={handleSavedChange}
+                onChanged={current.reload}
               />
             ))}
           </div>

@@ -10,6 +10,8 @@ import {
   Users,
   Video,
   MonitorPlay,
+  LogIn,
+  UserCheck,
 } from 'lucide-react';
 import { StudySessionResponse } from '../../types';
 import { buildGoogleCalendarUrl } from '../../utils/calendar';
@@ -22,6 +24,7 @@ interface SessionCardProps {
   onEdit: (session: StudySessionResponse) => void;
   onDelete: (session: StudySessionResponse) => void;
   onToggleAttendance: (session: StudySessionResponse) => void;
+  onCheckIn: (session: StudySessionResponse) => void;
   onOpenReviews: (session: StudySessionResponse) => void;
   onEditRecording: (session: StudySessionResponse) => void;
   onWatchRecording: (session: StudySessionResponse) => void;
@@ -36,11 +39,19 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   onEdit,
   onDelete,
   onToggleAttendance,
+  onCheckIn,
   onOpenReviews,
   onEditRecording,
   onWatchRecording,
 }) => {
   const upcoming = !session.finished;
+  const live = session.checkInOpen;
+  const endTime = new Date(session.endsAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+
+  const joinNow = () => {
+    if (session.meetingUrl) window.open(session.meetingUrl, '_blank', 'noopener,noreferrer');
+    if (!session.checkedIn) onCheckIn(session);
+  };
 
   return (
     <article
@@ -51,12 +62,17 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       <div>
         <div className="flex items-center justify-between text-xs font-semibold text-indigo-600">
           <span className="inline-flex items-center gap-1">
-            <Clock size={14} /> {formatDateTime(session.scheduledAt)}
+            <Clock size={14} /> {formatDateTime(session.scheduledAt)} – {endTime}
             {!upcoming && <span className="font-medium text-slate-400"> · finalizada</span>}
+            {live && session.started && (
+              <span className="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">
+                En curso
+              </span>
+            )}
           </span>
           {session.canManage && (
             <span className="flex items-center gap-1">
-              {upcoming && (
+              {!session.started && (
                 <button
                   type="button"
                   onClick={() => onEdit(session)}
@@ -90,8 +106,13 @@ export const SessionCard: React.FC<SessionCardProps> = ({
 
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1">
-            <Users size={13} /> {session.attendeeCount} {session.attendeeCount === 1 ? 'asistente' : 'asistentes'}
+            <Users size={13} /> {session.attendeeCount} {session.attendeeCount === 1 ? 'confirmado' : 'confirmados'}
           </span>
+          {session.started && (
+            <span className="inline-flex items-center gap-1 text-emerald-700">
+              <UserCheck size={13} /> {session.checkedInCount} {session.checkedInCount === 1 ? 'asistió' : 'asistieron'}
+            </span>
+          )}
           {session.reviewCount > 0 && session.averageRating !== null && (
             <button
               type="button"
@@ -111,7 +132,28 @@ export const SessionCard: React.FC<SessionCardProps> = ({
       </div>
 
       <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-        {upcoming ? (
+        {live ? (
+          <>
+            {session.checkedIn ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 size={14} /> Asistencia registrada
+              </span>
+            ) : (
+              session.attending && (
+                <span className="self-center text-[11px] text-slate-500">Confirmaste: entra para no perder puntos</span>
+              )
+            )}
+            <button
+              type="button"
+              onClick={joinNow}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {session.checkedIn ? <Video size={14} /> : <LogIn size={14} />}
+              {session.checkedIn ? 'Volver a la llamada' : 'Unirme ahora'}
+            </button>
+          </>
+        ) : upcoming ? (
           <>
             <button
               type="button"
@@ -124,21 +166,11 @@ export const SessionCard: React.FC<SessionCardProps> = ({
                   : `${secondaryButton} disabled:opacity-50`
               }
             >
-              <CheckCircle2 size={14} /> {session.attending ? 'Asistirás' : 'Asistiré'}
+              <CheckCircle2 size={14} /> {session.attending ? 'Asistirás' : 'Confirmar asistencia'}
             </button>
             <a href={buildGoogleCalendarUrl(session)} target="_blank" rel="noopener noreferrer" className={secondaryButton}>
               <CalendarPlus size={14} /> Google Calendar
             </a>
-            {session.meetingUrl && (
-              <a
-                href={session.meetingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-              >
-                <Video size={14} /> Unirse a la llamada
-              </a>
-            )}
           </>
         ) : (
           <>

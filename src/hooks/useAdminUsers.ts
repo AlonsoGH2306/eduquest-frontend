@@ -24,7 +24,8 @@ export function useAdminUsers(page: number, size: number) {
     [replaceUser]
   );
   const banUser = useCallback(
-    async (userId: number, reason: string) => replaceUser(await adminService.banUser(userId, reason)),
+    async (userId: number, reason: string, days: number | null) =>
+      replaceUser(await adminService.banUser(userId, reason, days)),
     [replaceUser]
   );
   const unbanUser = useCallback(

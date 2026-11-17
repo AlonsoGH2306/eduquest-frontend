@@ -11,6 +11,9 @@ export interface DocumentPreview {
 }
 
 const OFFICE_OR_PDF = /\.(pdf|docx?|pptx?|xlsx?)(\?.*)?$/i;
+const UPLOADED_FILE = /\/api\/v1\/files\/[0-9a-f-]{36}/i;
+
+export const isUploadedFile = (url: string) => UPLOADED_FILE.test(url);
 const IMAGE = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i;
 
 const kindFromExtension = (url: string): FileKind => {
@@ -66,6 +69,23 @@ export function buildDocumentPreview(fileUrl: string, title = ''): DocumentPrevi
       downloadUrl: null,
       openUrl: url,
       fileKind: 'video',
+      source: 'web',
+    };
+  }
+
+  if (isUploadedFile(url)) {
+    const fileKind = kindFromExtension(url);
+    const downloadUrl = `${url.split('?')[0]}?download=true`;
+    if (fileKind === 'image') {
+      return { kind: 'image', src: url, downloadUrl, openUrl: url, fileKind, source: 'web' };
+    }
+    const nativeViewer = fileKind === 'pdf' || /\.txt(\?.*)?$/i.test(url);
+    return {
+      kind: 'iframe',
+      src: nativeViewer ? url : `https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(url)}`,
+      downloadUrl,
+      openUrl: url,
+      fileKind,
       source: 'web',
     };
   }

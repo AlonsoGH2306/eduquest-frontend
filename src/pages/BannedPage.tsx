@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CalendarClock, CheckCircle2, UserX } from 'lucide-react';
 import { BAN_STORAGE_KEY } from '../services/axiosInstance';
 import { BanInfo } from '../types';
+import { AppealForm } from '../components/auth/AppealForm';
 
 const RULES = [
   'Compartir solo material académico y propio o con permiso de su autor.',
@@ -21,7 +22,7 @@ const readBanInfo = (): BanInfo | null => {
 
 export const BannedPage: React.FC = () => {
   const navigate = useNavigate();
-  const info = useMemo(readBanInfo, []);
+  const [info] = useState(readBanInfo);
 
   const goBack = () => {
     sessionStorage.removeItem(BAN_STORAGE_KEY);
@@ -36,8 +37,11 @@ export const BannedPage: React.FC = () => {
         </div>
         <h1 className="text-2xl font-extrabold text-slate-900">Tu cuenta fue suspendida</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Un administrador vetó tu cuenta por incumplir las normas de la comunidad. Mientras el veto siga activo no
-          podrás usar EduQuest.
+          {info?.bannedUntil
+            ? `La moderación suspendió tu cuenta por incumplir las normas de la comunidad. Podrás volver a entrar el ${new Date(
+                info.bannedUntil
+              ).toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' })}.`
+            : 'Un administrador vetó tu cuenta por incumplir las normas de la comunidad. Mientras el veto siga activo no podrás usar EduQuest.'}
         </p>
 
         <div className="mt-6 rounded-2xl border border-red-100 bg-red-50/50 p-4 text-left">
@@ -63,14 +67,12 @@ export const BannedPage: React.FC = () => {
           </ul>
         </div>
 
-        <p className="mt-6 text-xs text-slate-500">
-          Si crees que se trata de un error, comunícate con el equipo de EduQuest o con tu docente.
-        </p>
+        <AppealForm />
 
         <button
           type="button"
           onClick={goBack}
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+          className="mt-6 ml-2 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
         >
           <ArrowLeft size={15} /> Volver al inicio de sesión
         </button>

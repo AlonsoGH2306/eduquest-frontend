@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import { Sparkles, BookOpen, Clock, Plus, X } from 'lucide-react';
+import { Sparkles, BookOpen, Clock, Plus, Trash2, X } from 'lucide-react';
 import { useStudyPlans } from '../hooks/useStudyPlans';
 import { PlanContent } from '../components/plans/PlanContent';
 import { PlanProgress } from '../components/plans/PlanProgress';
@@ -12,6 +12,7 @@ import { CourseInput, StudyPlanResponse } from '../types';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { Spinner } from '../components/common/Spinner';
 import { EmptyState } from '../components/common/EmptyState';
+import { ConfirmModal } from '../components/common/ConfirmModal';
 
 const MAX_COURSES = 8;
 const emptyCourse: CourseInput = { name: '', difficulty: 'Media' };
@@ -23,7 +24,25 @@ interface PlannerForm {
 const difficultyLabel = (difficulty: string) => (difficulty === 'Mixta' ? 'Ciclo completo' : `Dificultad ${difficulty}`);
 
 export const StudyPlannerPage: React.FC = () => {
-  const { plans, loading: loadingHistory, error, reload, generating, generatePlan, toggleStep } = useStudyPlans();
+  const { plans, loading: loadingHistory, error, reload, generating, generatePlan, toggleStep, deletePlan } =
+    useStudyPlans();
+  const [planToDelete, setPlanToDelete] = useState<StudyPlanResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!planToDelete) return;
+    setDeleting(true);
+    try {
+      await deletePlan(planToDelete.id);
+      toast.success('Plan eliminado');
+      if (selectedId === planToDelete.id) setSelectedId(null);
+      setPlanToDelete(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selectedPlan: StudyPlanResponse | null = plans.find((plan) => plan.id === selectedId) ?? plans[0] ?? null;
 
@@ -73,7 +92,7 @@ export const StudyPlannerPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:sticky lg:top-24 lg:col-span-1 lg:max-h-[calc(100vh-8rem)] lg:self-start">
+        <div className="flex min-w-0 flex-col rounded-3xl border border-slate-200 bg-white p-6 lg:sticky lg:top-24 lg:col-span-1 lg:max-h-[calc(100vh-8rem)] lg:self-start">
           <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">
             <Sparkles size={18} className="text-indigo-600" /> Nuevo Plan de Estudio
           </h2>
@@ -137,7 +156,7 @@ export const StudyPlannerPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-700 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
             >
               <Sparkles size={15} />
               {isSubmitting
@@ -177,7 +196,7 @@ export const StudyPlannerPage: React.FC = () => {
                         : 'border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <p className="line-clamp-1 text-xs font-bold text-slate-800">{p.courseName}</p>
+                    <p className="line-clamp-1 text-xs font-bold break-all text-slate-800">{p.courseName}</p>
                     <span className="mt-1 inline-block rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
                       {difficultyLabel(p.difficulty)}
                     </span>
@@ -190,24 +209,33 @@ export const StudyPlannerPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs lg:col-span-2">
+        <div className="min-w-0 rounded-3xl border border-slate-200 bg-white p-6 lg:col-span-2">
           {generating ? (
             <Spinner size={34} label="Generando tu plan de estudio..." />
           ) : selectedPlan ? (
             <div>
               <div className="mb-4 space-y-3 border-b border-slate-100 pb-4">
-                <div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-                    <BookOpen size={12} /> {difficultyLabel(selectedPlan.difficulty)}
-                  </span>
-                  <h2 className="mt-1 text-xl font-bold text-slate-900">{selectedPlan.courseName}</h2>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                      <BookOpen size={12} /> {difficultyLabel(selectedPlan.difficulty)}
+                    </span>
+                    <h2 className="mt-1 text-xl font-bold [overflow-wrap:anywhere] text-slate-900">{selectedPlan.courseName}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPlanToDelete(selectedPlan)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 size={13} /> Eliminar
+                  </button>
                 </div>
                 <PlanProgress completed={selectedPlan.completedSteps.length} total={selectedPlan.totalSteps} />
                 {selectedPlan.totalSteps > 0 && (
                   <p className="text-xs text-slate-500">Marca cada actividad cuando la termines; tu avance se guarda solo.</p>
                 )}
               </div>
-              <div className="rounded-xl bg-slate-50 p-5">
+              <div className="rounded-2xl bg-slate-50 p-5 [overflow-wrap:anywhere]">
                 <PlanContent
                   content={selectedPlan.generatedContent}
                   completedSteps={selectedPlan.completedSteps}
@@ -227,6 +255,24 @@ export const StudyPlannerPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={planToDelete !== null}
+        title="Eliminar plan de estudio"
+        message={
+          <>
+            Se borrará el plan de «<span className="font-semibold text-slate-900">{planToDelete?.courseName}</span>» y
+            su avance. Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Eliminar"
+        loadingLabel="Eliminando..."
+        destructive
+        loading={deleting}
+        icon={<Trash2 size={14} />}
+        onConfirm={confirmDelete}
+        onClose={() => setPlanToDelete(null)}
+      />
     </div>
   );
 };
