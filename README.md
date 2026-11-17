@@ -4,14 +4,16 @@ Frontend web de **EduQuest** (CS2031 Desarrollo Basado en Plataformas, Proyecto 
 
 **Integrantes:** Juan Pablo Saavedra Ruiz, Piero Alejandro Ortega Capacute, Omar Alonzo Guzmán Harvey y Edson Yenen Falcon Jimenez
 
+**Deployment:** https://main.d2uujuj0mby859.amplifyapp.com (AWS Amplify), conectada a la API https://3-222-104-57.sslip.io/api/v1 (EC2 + RDS + S3).
+
 ## Vistas
 
 | Ruta | Vista | Endpoints |
 |---|---|---|
-| `/` | Página de inicio pública: qué es EduQuest, sus funciones principales con maquetas y botones para crear cuenta o iniciar sesión. Si ya hay sesión, lleva al dashboard | — |
+| `/` | Página de inicio pública: qué es EduQuest, sus funciones principales con maquetas y botones para crear cuenta o iniciar sesión. En pantallas de 1536 px o más se agranda en proporción. Si ya hay sesión, lleva al dashboard | — |
 | `/login`, `/register` | Inicio de sesión y registro (botón para ver la contraseña, confirmación y opción de ser asesor) con validación en tiempo real | `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh` |
 | `/dashboard` | Resumen con totales, lo último subido y el top de la semana | `GET /documents`, `GET /groups`, `GET /study-plans`, `GET /gamification/leaderboard` |
-| `/documents?view&page&size&search&tag&course&university&sort` | Biblioteca pública: búsqueda con debounce, filtros por etiqueta, curso y universidad, orden y paginación; vista previa del material (PDF, Office, Drive, YouTube, imágenes); subir el archivo desde el equipo o pegar un enlace; editar o eliminar tu material; **Mis guardados**; reseñas; reportar material; **Estudiar**: quiz o flashcards generados con IA desde el material | `GET /documents`, `POST /documents`, `POST /documents/{id}/study-set`, `GET /documents/saved`, `GET /documents/saved/ids`, `POST|DELETE /documents/{id}/saved`, `GET /documents/{id}/reviews`, `POST|PUT|DELETE /reviews`, `POST /reports` |
+| `/documents?view&page&size&search&tag&course&university&sort` | Biblioteca pública: búsqueda con debounce, filtros por etiqueta, curso y universidad, orden y paginación; vista previa del material (PDF, Office, Drive, YouTube, imágenes); subir el archivo desde el equipo o pegar un enlace; editar o eliminar tu material; **Mis guardados**; reseñas; reportar material; **Estudiar**: quiz o flashcards generados con IA desde el material (las fórmulas se muestran con símbolos, por ejemplo Δθ ≈ 1.22 λ/D) | `GET /documents`, `POST /documents`, `POST /documents/{id}/study-set`, `GET /documents/saved`, `GET /documents/saved/ids`, `POST|DELETE /documents/{id}/saved`, `GET /documents/{id}/reviews`, `POST|PUT|DELETE /reviews`, `POST /reports` |
 | `/groups?view&search&page&size` | **Mis grupos** ordenados por última actividad con contador de novedades; **Explorar** con búsqueda por nombre (públicos) o por código (privados), crear grupo y unirse | `GET /groups/mine`, `GET /groups?search`, `GET /groups/code/{code}`, `POST /groups`, `POST /groups/{id}/join` |
 | `/groups/:groupId?tab&page&size` | Detalle: documentos, sesiones con hora de inicio y fin (agendar, editar, eliminar, Google Calendar, confirmar asistencia antes de empezar, «Unirme ahora» durante la sesión, calificar la asesoría y ver su grabación de YouTube), **chat** con imágenes (botón o arrastrar) e integrantes (con insignia de asesor, mensaje directo y opción de reportar); el creador edita, elimina el grupo o quita integrantes y los demás pueden salir; al entrar marca las novedades como vistas | `GET /groups/{id}`, `GET|POST /groups/{id}/documents`, `GET|POST /groups/{id}/sessions`, `PUT|DELETE /groups/{id}/sessions/{sessionId}`, `POST|DELETE …/attendance`, `POST …/check-in`, `GET|POST …/reviews`, `PUT …/recording`, `GET|POST /groups/{id}/messages`, `GET /groups/{id}/members`, `POST /groups/{id}/seen`, `POST /groups/{id}/messages/seen` |
 | `/groups/:groupId?tab=chat&channel` | Chat tipo Discord: canales (el creador y los moderadores crean, editan y borran), menciones con autocompletado, formato (**negrita**, *cursiva*, `código`, listas y enlaces), reacciones, responder, hilos, fijar mensajes, buscar en el historial, adjuntar imágenes, videos (con reproductor en el chat) o documentos, encuestas y stickers animados (paquete propio y colección personal con GIF); en el encabezado del grupo, **Sala de voz** y silenciar; en integrantes, quién está en línea y nombrar moderadores | `/groups/{id}/channels/**`, `/groups/{id}/messages/**`, `/groups/{id}/polls/**`, `/groups/{id}/members/{memberId}/moderator`, `/groups/{id}/mute`, `/groups/{id}/voice-room`, `/groups/{id}/online`, `/users/me/stickers` |
@@ -56,12 +58,14 @@ src/
 ├── components/      Componentes presentacionales: common, layout, brand (Lumi), landing, documents, groups, chat,
 │                    messages, forum, admin, dashboard, plans, achievements, profile, reports
 ├── types/           Interfaces de los DTOs del backend
-└── utils/           Errores, formularios, roles, fechas, Google Calendar, vista previa de documentos y almacenamiento del token
+└── utils/           Errores, formularios, roles, fechas, Google Calendar, vista previa de documentos, fórmulas
+                     (mathText.ts convierte LaTeX a símbolos) y almacenamiento del token
 ```
 
 - **Cliente HTTP:** `axios.create` con `baseURL`, cabeceras por defecto e interceptores. Agrega el JWT, renueva el token con el refresh token (con cola de peticiones), reintenta las lecturas ante fallos de red o 502/503/504, y redirige si la cuenta fue vetada. Todas las vistas cancelan sus peticiones con `AbortController` al desmontarse.
 - **Sesión:** el token vive en memoria y en `sessionStorage` (no en `localStorage`), así se borra al cerrar el navegador.
 - **Errores:** `utils/errors.ts` traduce los códigos 400, 401, 403, 404, 409, 413 y 5xx a mensajes claros. Los errores de validación del backend se muestran junto a cada campo del formulario. Hay un `ErrorBoundary` general y otro por pantalla (si una vista falla, el menú sigue funcionando y se reinicia al cambiar de ruta), estados de error con botón de reintento, aviso sin conexión, skeletons de carga, toasts de éxito, confirmación antes de borrar y botones bloqueados mientras se envía.
+- **Archivos:** las URLs de archivos subidos apuntan al backend, que redirige a una URL firmada de S3. La vista previa descarga el archivo con `fetch` y lo muestra desde una copia local (`blob:`), así funciona aunque el archivo esté en otro dominio.
 - **Paginación:** documentos, grupos, documentos de grupo, foro, usuarios, reportes y apelaciones usan los endpoints paginados del backend. Se puede elegir entre 10, 25, 50 o 100 por página, y la página queda guardada en la URL para compartirla.
 
 ## Cómo correrlo
@@ -78,11 +82,15 @@ npm run dev                 # http://localhost:5173
 
 ## Despliegue (AWS Amplify)
 
-1. En Amplify, *Create new app* → conecta el repositorio de GitHub y la rama `main`. Amplify detecta `amplify.yml`, que usa Node 22, instala con `npm ci`, compila con `npm run build` y publica la carpeta `dist`.
-2. En *Environment variables* agrega `VITE_API_BASE_URL=https://<dominio-del-backend>/api/v1`. Vite la lee al compilar, así que después de cambiarla hay que volver a desplegar. El WebSocket usa la misma dirección con `wss://`.
-3. En *Rewrites and redirects* agrega una regla para que las rutas del SPA funcionen al recargar:
-   - Origen: `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`
-   - Destino: `/index.html` · Tipo: `200 (Rewrite)`
-4. En el backend, la URL que asigna Amplify (por ejemplo `https://main.d1a2b3c4.amplifyapp.com`, sin barra final) va en `CORS_ALLOWED_ORIGINS` y en `FRONTEND_URL`.
+La web está publicada en **https://main.d2uujuj0mby859.amplifyapp.com**. Amplify compila la rama `main` del fork `AlonsoGH2306/eduquest-frontend`, que se sincroniza con este repositorio; cada push al fork dispara una compilación nueva.
+
+| Configuración | Valor |
+|---|---|
+| Compilación | `amplify.yml`: Node 22, `npm ci`, `npm run build`, publica `dist` |
+| Variable de entorno | `VITE_API_BASE_URL=https://3-222-104-57.sslip.io/api/v1` (Vite la lee al compilar; el WebSocket usa la misma dirección con `wss://`) |
+| Reescritura | Origen `</^[^.]+$\|\.(?!(css\|gif\|ico\|jpg\|js\|png\|txt\|svg\|woff\|woff2\|ttf\|map\|json\|webp)$)([^.]+$)/>` → `/index.html`, tipo `200 (Rewrite)`, para que las rutas de la SPA funcionen al recargar |
+| CORS en el backend | `CORS_ALLOWED_ORIGINS` y `FRONTEND_URL` = `https://main.d2uujuj0mby859.amplifyapp.com` |
+
+Para desplegarla en otra cuenta: en Amplify, *Create new app*, conectar el repositorio y la rama `main`, agregar la variable de entorno y la regla de reescritura de la tabla, y poner la URL que asigne Amplify (sin barra final) en `CORS_ALLOWED_ORIGINS` y `FRONTEND_URL` del backend. Si se cambia la variable, hay que volver a desplegar.
 
 El backend debe estar en HTTPS: el navegador bloquea las llamadas desde una página `https://` a una API `http://`.
