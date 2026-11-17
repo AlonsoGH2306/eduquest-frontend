@@ -353,3 +353,15 @@ h1 {
     animation: none;
   }
 }
+
+@media (min-width: 1536px) {
+  html.eq-landing {
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 1800px) {
+  html.eq-landing {
+    font-size: 125%;
+  }
+}
