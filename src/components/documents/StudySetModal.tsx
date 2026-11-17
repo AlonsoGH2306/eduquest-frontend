@@ -6,6 +6,7 @@ import { Spinner } from '../common/Spinner';
 import { studySetService } from '../../services/studySetService';
 import { DocumentResponse, StudySet, StudySetType } from '../../types';
 import { extractErrorMessage } from '../../utils/errors';
+import { formatMath } from '../../utils/mathText';
 
 interface StudySetModalProps {
   document: DocumentResponse | null;
@@ -25,7 +26,7 @@ const Quiz: React.FC<{ set: StudySet }> = ({ set }) => {
         return (
           <fieldset key={index} className="rounded-xl border border-slate-200 p-3">
             <legend className="px-1 text-sm font-semibold text-slate-900">
-              {index + 1}. {question.question}
+              {index + 1}. {formatMath(question.question)}
             </legend>
             <div className="mt-1 space-y-1.5">
               {question.options.map((option, optionIndex) => {
@@ -46,14 +47,14 @@ const Quiz: React.FC<{ set: StudySet }> = ({ set }) => {
                     className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm ${state}`}
                   >
                     <span className="font-semibold">{String.fromCharCode(65 + optionIndex)}.</span>
-                    <span className="flex-1">{option}</span>
+                    <span className="flex-1">{formatMath(option)}</span>
                     {done && isAnswer && <Check size={14} />}
                     {done && !isAnswer && optionIndex === chosen && <X size={14} />}
                   </button>
                 );
               })}
             </div>
-            {done && question.explanation && <p className="mt-2 text-xs text-slate-600">{question.explanation}</p>}
+            {done && question.explanation && <p className="mt-2 text-xs text-slate-600">{formatMath(question.explanation)}</p>}
           </fieldset>
         );
       })}
@@ -96,7 +97,7 @@ const Flashcards: React.FC<{ set: StudySet }> = ({ set }) => {
         <span className="mb-2 text-[11px] font-bold tracking-wide text-slate-500 uppercase">
           {flipped ? 'Respuesta' : 'Pregunta'} · toca para girar
         </span>
-        <span className="text-lg font-semibold text-slate-900">{flipped ? card.back : card.front}</span>
+        <span className="text-lg font-semibold text-slate-900">{formatMath(flipped ? card.back : card.front)}</span>
       </button>
       <div className="flex items-center justify-between">
         <button type="button" onClick={() => move(-1)} className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50" aria-label="Anterior">
