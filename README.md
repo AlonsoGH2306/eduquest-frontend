@@ -76,10 +76,13 @@ npm run dev                 # http://localhost:5173
 
 `VITE_API_BASE_URL` indica la URL de la API, por ejemplo `http://localhost:8080/api/v1`.
 
-## Despliegue (Vercel)
+## Despliegue (AWS Amplify)
 
-1. Importa el repositorio en Vercel (framework: Vite, build `npm run build`, salida `dist`).
-2. En *Environment Variables* agrega `VITE_API_BASE_URL=https://<tu-backend>/api/v1`.
-3. En el backend agrega el dominio de Vercel a `CORS_ALLOWED_ORIGINS`.
+1. En Amplify, *Create new app* → conecta el repositorio de GitHub y la rama `main`. Amplify detecta `amplify.yml`, que usa Node 22, instala con `npm ci`, compila con `npm run build` y publica la carpeta `dist`.
+2. En *Environment variables* agrega `VITE_API_BASE_URL=https://<dominio-del-backend>/api/v1`. Vite la lee al compilar, así que después de cambiarla hay que volver a desplegar. El WebSocket usa la misma dirección con `wss://`.
+3. En *Rewrites and redirects* agrega una regla para que las rutas del SPA funcionen al recargar:
+   - Origen: `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`
+   - Destino: `/index.html` · Tipo: `200 (Rewrite)`
+4. En el backend, la URL que asigna Amplify (por ejemplo `https://main.d1a2b3c4.amplifyapp.com`, sin barra final) va en `CORS_ALLOWED_ORIGINS` y en `FRONTEND_URL`.
 
-`vercel.json` redirige todas las rutas a `index.html` para que funcionen al recargar.
+El backend debe estar en HTTPS: el navegador bloquea las llamadas desde una página `https://` a una API `http://`.
